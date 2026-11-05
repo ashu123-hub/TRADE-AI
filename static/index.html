@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TradeMind AI — AI-Powered Indian Stock Market Intelligence</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- Plotly.js for interactive charts -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-icon">📈</div>
+      <div class="brand-text">
+        <h1>TradeMind AI</h1>
+        <span>NSE Intelligence</span>
+      </div>
+    </div>
+
+    <ul class="nav-links">
+      <li class="nav-item">
+        <a class="nav-link active" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          Dashboard
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="explore">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          Explore Stocks
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="watchlist">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+          Watchlist
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="intraday">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          Intraday Prediction
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="next-day">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
+          Next-Day Prediction
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="signals">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/></svg>
+          AI Trading Signals
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="technical">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          Technical Analysis
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="portfolio">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+          Portfolio
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="paper-trading">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+          Paper Trading
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="backtesting">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v20"/><path d="m17 5-5-3-5 3"/><path d="m17 19-5 3-5-3"/><path d="M2 12h20"/></svg>
+          Backtesting
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          Settings
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <button class="theme-toggle-btn" id="theme-toggle">
+        <span id="theme-icon">🌙</span>
+        <span id="theme-label">Dark Mode</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN VIEWPORT WRAPPER -->
+  <main class="main-wrapper">
+    <!-- TOP HEADER -->
+    <header class="top-header">
+      <div class="header-search">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="global-search-input" placeholder="Search NSE stocks (e.g., RELIANCE, TCS)..." autocomplete="off">
+        <div class="search-dropdown" id="search-dropdown"></div>
+      </div>
+
+      <div class="header-actions">
+        <div class="market-status-pill open" id="yahoo-status-pill" style="background:var(--light-purple); color:var(--primary-purple); border:1px solid var(--border);">
+          <span style="font-size:0.75rem; font-weight:700;">📡 Feed: Yahoo Finance (NSE)</span>
+        </div>
+        <div class="market-status-pill open" id="market-status-pill">
+          <span class="status-dot"></span>
+          <span id="market-status-text">NSE Market Live</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openOrderModal('RELIANCE', 'BUY')">
+          + Quick Trade
+        </button>
+      </div>
+    </header>
+
+    <!-- CONTENT PAGES -->
+    <div class="page-container">
+
+      <!-- 1. DASHBOARD VIEW -->
+      <section class="view-section active" id="view-dashboard">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Market Dashboard</h2>
+            <p class="page-subtitle">Real-time Indian equity market indicators and AI insights</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">🔄 Refresh</button>
+        </div>
+
+        <!-- Major Indices -->
+        <div class="indices-grid" id="indices-container">
+          <div class="index-card">
+            <div class="index-name">NIFTY 50</div>
+            <div class="index-price">Loading...</div>
+          </div>
+          <div class="index-card">
+            <div class="index-name">SENSEX</div>
+            <div class="index-price">Loading...</div>
+          </div>
+          <div class="index-card">
+            <div class="index-name">BANK NIFTY</div>
+            <div class="index-price">Loading...</div>
+          </div>
+          <div class="index-card">
+            <div class="index-name">NIFTY IT</div>
+            <div class="index-price">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Portfolio Quick Card & Market Summary -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">💼 Portfolio Snapshot</h3>
+              <button class="btn btn-secondary btn-sm" onclick="switchView('portfolio')">View All</button>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <p style="color:var(--text-secondary); font-size:0.85rem;">Total Portfolio Value</p>
+                <h2 style="font-size:1.8rem; font-weight:800; margin:4px 0;" id="dash-port-val">₹0.00</h2>
+                <span class="badge badge-buy" id="dash-port-ret">+0.00%</span>
+              </div>
+              <div>
+                <p style="color:var(--text-secondary); font-size:0.85rem;">Available Cash</p>
+                <h3 style="font-size:1.4rem; font-weight:700; color:var(--text-primary);" id="dash-port-cash">₹0.00</h3>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">🤖 AI Market Intelligence</h3>
+              <span class="badge badge-hold">Gemini 1.5</span>
+            </div>
+            <p id="dash-ai-summary" style="font-size:0.9rem; color:var(--text-secondary); line-height:1.6;">
+              Fetching latest market commentary and sentiment analysis from Gemini AI...
+            </p>
+          </div>
+        </div>
+
+        <!-- Top Gainers & Losers -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">🚀 Top Gainers (NSE)</h3>
+            </div>
+            <div class="table-container">
+              <table class="custom-table" id="dash-gainers-table">
+                <thead><tr><th>Symbol</th><th>LTP (₹)</th><th>Change</th><th>Action</th></tr></thead>
+                <tbody><tr><td colspan="4">Loading gainers...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">📉 Top Losers (NSE)</h3>
+            </div>
+            <div class="table-container">
+              <table class="custom-table" id="dash-losers-table">
+                <thead><tr><th>Symbol</th><th>LTP (₹)</th><th>Change</th><th>Action</th></tr></thead>
+                <tbody><tr><td colspan="4">Loading losers...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. EXPLORE STOCKS VIEW -->
+      <section class="view-section" id="view-explore">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Explore NSE Stocks</h2>
+            <p class="page-subtitle">Multi-factor market scanner across NIFTY equities</p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="runScanner()">🚀 Run Scanner</button>
+        </div>
+
+        <div class="filter-bar">
+          <div class="pill-tab active" onclick="filterScanTable('all', this)">All Stocks</div>
+          <div class="pill-tab" onclick="filterScanTable('gainers', this)">Top Gainers</div>
+          <div class="pill-tab" onclick="filterScanTable('losers', this)">Top Losers</div>
+          <div class="pill-tab" onclick="filterScanTable('volume', this)">High Volume</div>
+          <div class="pill-tab" onclick="filterScanTable('momentum', this)">Momentum Leaders</div>
+          <div class="pill-tab" onclick="filterScanTable('breakouts', this)">Breakout Alerts</div>
+        </div>
+
+        <div class="card">
+          <div class="table-container">
+            <table class="custom-table" id="scanner-table">
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Price (₹)</th>
+                  <th>Change (%)</th>
+                  <th>Volume / 20DMA</th>
+                  <th>RSI (14)</th>
+                  <th>MACD</th>
+                  <th>Momentum</th>
+                  <th>Breakout</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="scanner-table-body">
+                <tr><td colspan="9" style="text-align:center; padding:32px;">Click <strong>Run Scanner</strong> to scan NSE stocks.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. STOCK DETAILS VIEW -->
+      <section class="view-section" id="view-stock-detail">
+        <div class="stock-hero">
+          <div class="stock-hero-left">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <h2 id="detail-symbol">RELIANCE</h2>
+              <button class="btn btn-secondary btn-sm" id="detail-watchlist-btn" onclick="toggleCurrentWatchlist()">⭐ Add to Watchlist</button>
+            </div>
+            <p id="detail-company-name">Reliance Industries Limited • NSE</p>
+            <span class="badge" style="background:var(--light-purple); color:var(--primary-purple); margin-top:6px; display:inline-block;">Feed: Yahoo Finance (yfinance)</span>
+          </div>
+          <div>
+            <div class="stock-hero-price" id="detail-price">₹0.00</div>
+            <div class="stock-hero-change positive" id="detail-change">+0.00%</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:24px;">
+          <div class="card-header">
+            <div class="timeframe-selector">
+              <button class="tf-btn" onclick="changeChartTimeframe('1d', '5m', this)">1D (5m)</button>
+              <button class="tf-btn" onclick="changeChartTimeframe('5d', '15m', this)">5D (15m)</button>
+              <button class="tf-btn" onclick="changeChartTimeframe('1mo', '1d', this)">1M</button>
+              <button class="tf-btn" onclick="changeChartTimeframe('6mo', '1d', this)">6M</button>
+              <button class="tf-btn active" onclick="changeChartTimeframe('1y', '1d', this)">1Y</button>
+              <button class="tf-btn" onclick="changeChartTimeframe('5y', '1d', this)">5Y</button>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-buy btn-sm" onclick="openOrderModal(currentDetailSymbol, 'BUY')">BUY</button>
+              <button class="btn btn-sell btn-sm" onclick="openOrderModal(currentDetailSymbol, 'SELL')">SELL</button>
+            </div>
+          </div>
+          <div id="stock-plotly-chart" class="chart-container"></div>
+        </div>
+
+        <!-- Technical Snapshot Grid -->
+        <div class="grid-4" id="detail-indicators-grid">
+          <div class="card" style="padding:16px;">
+            <p style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase;">RSI (14)</p>
+            <h3 style="font-size:1.3rem; margin-top:4px;" id="ind-rsi">--</h3>
+          </div>
+          <div class="card" style="padding:16px;">
+            <p style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase;">MACD (12,26)</p>
+            <h3 style="font-size:1.3rem; margin-top:4px;" id="ind-macd">--</h3>
+          </div>
+          <div class="card" style="padding:16px;">
+            <p style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase;">EMA (9 / 21)</p>
+            <h3 style="font-size:1.3rem; margin-top:4px;" id="ind-ema">--</h3>
+          </div>
+          <div class="card" style="padding:16px;">
+            <p style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase;">Support / Resistance</p>
+            <h3 style="font-size:1.3rem; margin-top:4px;" id="ind-sr">--</h3>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. WATCHLIST VIEW -->
+      <section class="view-section" id="view-watchlist">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Personal Watchlist</h2>
+            <p class="page-subtitle">Track your favorite Indian equity tickers</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-container">
+            <table class="custom-table" id="watchlist-table">
+              <thead><tr><th>Symbol</th><th>Price (₹)</th><th>Change (%)</th><th>52W High</th><th>52W Low</th><th>Action</th></tr></thead>
+              <tbody id="watchlist-table-body">
+                <tr><td colspan="6" style="text-align:center; padding:32px;">No stocks saved to watchlist. Click ⭐ on any stock to track.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. INTRADAY PREDICTION VIEW -->
+      <section class="view-section" id="view-intraday">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">⚡ Intraday Prediction Engine</h2>
+            <p class="page-subtitle">Short-term 5m and 15m direction forecasts powered by Random Forest + XGBoost</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom:16px;">Run Intraday Forecast</h3>
+            <div class="form-group">
+              <label class="form-label">Stock Symbol</label>
+              <select class="form-select" id="intra-stock-select"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Candle Interval</label>
+              <select class="form-select" id="intra-interval-select">
+                <option value="5m">5 Minutes</option>
+                <option value="15m">15 Minutes</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="runIntradayPrediction()" style="width:100%;">🔮 Forecast Direction</button>
+          </div>
+
+          <div class="card" id="intra-result-card" style="display:none;">
+            <div class="card-header">
+              <h3 class="card-title">Forecast Outcome</h3>
+              <span class="badge" id="intra-badge">HOLD</span>
+            </div>
+            <div style="margin-bottom:16px;">
+              <p style="color:var(--text-secondary); font-size:0.85rem;">Ensemble Direction</p>
+              <h2 id="intra-direction" style="font-size:1.8rem; font-weight:800; margin:4px 0;">--</h2>
+              <p style="font-size:0.9rem;">Confidence: <strong id="intra-confidence">0%</strong></p>
+            </div>
+            <div class="grid-2" style="margin-bottom:16px;">
+              <div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">Random Forest</p>
+                <h4 id="intra-rf-sig">--</h4>
+              </div>
+              <div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">XGBoost</p>
+                <h4 id="intra-xgb-sig">--</h4>
+              </div>
+            </div>
+            <div style="background:var(--bg-lavender); padding:12px; border-radius:var(--radius-md);">
+              <p style="font-size:0.8rem; font-weight:600; color:var(--primary-purple); margin-bottom:4px;">🤖 Gemini Analysis</p>
+              <p id="intra-ai-exp" style="font-size:0.85rem; color:var(--text-primary); line-height:1.5;">--</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. NEXT-DAY PREDICTION VIEW -->
+      <section class="view-section" id="view-next-day">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">📅 Next-Day Price Forecast</h2>
+            <p class="page-subtitle">Daily horizon predictions with Deep Learning LSTM & Ensembles</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom:16px;">Run Daily Forecast</h3>
+            <div class="form-group">
+              <label class="form-label">Stock Symbol</label>
+              <select class="form-select" id="next-stock-select"></select>
+            </div>
+            <button class="btn btn-primary" onclick="runNextDayPrediction()" style="width:100%;">🔮 Forecast Next Session</button>
+          </div>
+
+          <div class="card" id="next-result-card" style="display:none;">
+            <div class="card-header">
+              <h3 class="card-title">Next-Session Forecast</h3>
+              <span class="badge" id="next-badge">HOLD</span>
+            </div>
+            <div style="margin-bottom:16px;">
+              <p style="color:var(--text-secondary); font-size:0.85rem;">Projected Close (LSTM)</p>
+              <h2 id="next-pred-price" style="font-size:2rem; font-weight:800; color:var(--primary-purple); margin:4px 0;">--</h2>
+              <span class="badge" id="next-pred-change">+0.00%</span>
+            </div>
+            <div class="grid-3" style="margin-bottom:16px;">
+              <div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">Random Forest</p>
+                <h4 id="next-rf-sig">--</h4>
+              </div>
+              <div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">XGBoost</p>
+                <h4 id="next-xgb-sig">--</h4>
+              </div>
+              <div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">Ensemble Conf.</p>
+                <h4 id="next-conf">--</h4>
+              </div>
+            </div>
+            <div style="background:var(--bg-lavender); padding:12px; border-radius:var(--radius-md);">
+              <p style="font-size:0.8rem; font-weight:600; color:var(--primary-purple); margin-bottom:4px;">🤖 Gemini Analysis</p>
+              <p id="next-ai-exp" style="font-size:0.85rem; color:var(--text-primary); line-height:1.5;">--</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. AI TRADING SIGNALS VIEW -->
+      <section class="view-section" id="view-signals">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">🎯 Algorithmic AI Trading Signals</h2>
+            <p class="page-subtitle">Composite BUY/SELL/HOLD signals with Entry, Target, Stop-Loss, and R:R ratios</p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="loadTradingSignals()">⚡ Generate Signals</button>
+        </div>
+
+        <div class="grid-3" id="signals-container">
+          <div class="card"><p>Click <strong>Generate Signals</strong> to compute trading setups.</p></div>
+        </div>
+      </section>
+
+      <!-- 8. TECHNICAL ANALYSIS VIEW -->
+      <section class="view-section" id="view-technical">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">📐 Technical Analysis Suite</h2>
+            <p class="page-subtitle">Deep indicator analysis with Bollinger Bands, Oscillators, and Moving Averages</p>
+          </div>
+          <div style="display:flex; gap:12px; align-items:center;">
+            <select class="form-select" id="ta-stock-select" style="width:200px;"></select>
+            <button class="btn btn-primary btn-sm" onclick="loadTechnicalChart()">Render Chart</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:24px;">
+          <div id="ta-plotly-chart" style="height:550px; width:100%;"></div>
+        </div>
+      </section>
+
+      <!-- 9. PORTFOLIO VIEW -->
+      <section class="view-section" id="view-portfolio">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">💼 Portfolio & Holdings</h2>
+            <p class="page-subtitle">Real-time valuation of paper trading positions</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadPortfolio()">🔄 Refresh Prices</button>
+        </div>
+
+        <div class="grid-4" style="margin-bottom:28px;">
+          <div class="card" style="padding:20px;">
+            <p style="font-size:0.8rem; color:var(--text-secondary);">Total Value</p>
+            <h3 style="font-size:1.6rem; font-weight:800;" id="port-total-val">₹0.00</h3>
+          </div>
+          <div class="card" style="padding:20px;">
+            <p style="font-size:0.8rem; color:var(--text-secondary);">Cash Balance</p>
+            <h3 style="font-size:1.6rem; font-weight:800;" id="port-cash-val">₹0.00</h3>
+          </div>
+          <div class="card" style="padding:20px;">
+            <p style="font-size:0.8rem; color:var(--text-secondary);">Total P&L</p>
+            <h3 style="font-size:1.6rem; font-weight:800;" id="port-pnl-val">₹0.00</h3>
+          </div>
+          <div class="card" style="padding:20px;">
+            <p style="font-size:0.8rem; color:var(--text-secondary);">Daily Realized P&L</p>
+            <h3 style="font-size:1.6rem; font-weight:800;" id="port-daily-val">₹0.00</h3>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:28px;">
+          <div class="card-header">
+            <h3 class="card-title">Current Holdings</h3>
+          </div>
+          <div class="table-container">
+            <table class="custom-table" id="holdings-table">
+              <thead><tr><th>Symbol</th><th>Qty</th><th>Avg Price (₹)</th><th>LTP (₹)</th><th>Current Val (₹)</th><th>P&L (₹)</th><th>P&L (%)</th><th>Action</th></tr></thead>
+              <tbody id="holdings-table-body">
+                <tr><td colspan="8" style="text-align:center; padding:24px;">No active holdings. Place a trade via Paper Trading.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Recent Transactions</h3>
+          </div>
+          <div class="table-container">
+            <table class="custom-table" id="transactions-table">
+              <thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Qty</th><th>Price (₹)</th><th>Brokerage (₹)</th><th>Total (₹)</th></tr></thead>
+              <tbody id="transactions-table-body">
+                <tr><td colspan="7" style="text-align:center; padding:24px;">No transactions recorded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 10. PAPER TRADING VIEW -->
+      <section class="view-section" id="view-paper-trading">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">📝 Simulated Paper Trading</h2>
+            <p class="page-subtitle">Practice order execution with Indian brokerage, STT, and exchange fee modeling</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="resetPaperPortfolio()">🔄 Reset Capital</button>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom:16px;">Place Paper Order</h3>
+            <div class="form-group">
+              <label class="form-label">Stock Ticker</label>
+              <select class="form-select" id="pt-stock-select" onchange="fetchPTStockPrice()"></select>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label">Order Type</label>
+                <select class="form-select" id="pt-side-select">
+                  <option value="BUY">BUY</option>
+                  <option value="SELL">SELL</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Quantity</label>
+                <input type="number" class="form-input" id="pt-qty-input" value="10" min="1" oninput="updateBrokerageCalc()">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Limit/Execution Price (₹)</label>
+              <input type="number" class="form-input" id="pt-price-input" step="0.5" oninput="updateBrokerageCalc()">
+            </div>
+            
+            <div style="background:var(--bg-lavender); padding:16px; border-radius:var(--radius-md); margin-bottom:16px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem;">
+                <span>Estimated Turnover:</span>
+                <strong id="pt-turnover">₹0.00</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.85rem;">
+                <span>Brokerage + STT + GST:</span>
+                <strong id="pt-charges">₹0.00</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.95rem; font-weight:700; border-top:1px solid var(--border); padding-top:6px;">
+                <span>Total Capital Required:</span>
+                <strong id="pt-total-cost" style="color:var(--primary-purple);">₹0.00</strong>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="executePaperTrade()" style="width:100%;">Execute Simulated Order</button>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom:16px;">Execution Rules & Fees</h3>
+            <div style="font-size:0.88rem; color:var(--text-secondary); line-height:1.7;">
+              <p>• <strong>Brokerage:</strong> Flat 0.03% capped at ₹20 per executed order (Zerodha model).</p>
+              <p>• <strong>Securities Transaction Tax (STT):</strong> 0.1% applicable on delivery sell side.</p>
+              <p>• <strong>Exchange Charges & GST:</strong> 18% GST on brokerage & exchange fees.</p>
+              <p>• <strong>Zero Risk:</strong> 100% paper simulation. No connection to live trading accounts.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 11. BACKTESTING VIEW -->
+      <section class="view-section" id="view-backtesting">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">📊 Quantitative Strategy Backtesting</h2>
+            <p class="page-subtitle">Walk-forward historical simulations with realistic slippage and commission</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom:16px;">Backtest Setup</h3>
+            <div class="form-group">
+              <label class="form-label">Stock Symbol</label>
+              <select class="form-select" id="bt-stock-select"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Strategy</label>
+              <select class="form-select" id="bt-strategy-select">
+                <option value="EMA Crossover (9/21)">EMA Crossover (9/21)</option>
+                <option value="RSI + Bollinger Bands">RSI + Bollinger Bands Mean-Reversion</option>
+                <option value="MACD Crossover">MACD Crossover</option>
+              </select>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label">Lookback Period</label>
+                <select class="form-select" id="bt-period-select">
+                  <option value="1y">1 Year</option>
+                  <option value="2y" selected>2 Years</option>
+                  <option value="5y">5 Years</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Starting Capital (₹)</label>
+                <input type="number" class="form-input" id="bt-capital-input" value="100000" step="10000">
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label">Stop-Loss (%)</label>
+                <input type="number" class="form-input" id="bt-sl-input" value="2.0" step="0.5">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Take-Profit (%)</label>
+                <input type="number" class="form-input" id="bt-tp-input" value="4.0" step="0.5">
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="runBacktest()" style="width:100%;">▶️ Execute Backtest</button>
+          </div>
+
+          <div class="card" id="bt-results-card" style="display:none;">
+            <h3 class="card-title" style="margin-bottom:16px;">Performance Metrics</h3>
+            <div class="grid-2" style="margin-bottom:16px;">
+              <div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">Total Return</p>
+                <h3 id="bt-ret" style="font-size:1.6rem; font-weight:800;">0%</h3>
+              </div>
+              <div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">Win Rate</p>
+                <h3 id="bt-winrate" style="font-size:1.6rem; font-weight:800;">0%</h3>
+              </div>
+              <div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">Max Drawdown</p>
+                <h3 id="bt-dd" style="font-size:1.6rem; font-weight:800;">0%</h3>
+              </div>
+              <div>
+                <p style="font-size:0.75rem; color:var(--text-secondary);">Sharpe Ratio</p>
+                <h3 id="bt-sharpe" style="font-size:1.6rem; font-weight:800;">0.00</h3>
+              </div>
+            </div>
+            <div id="bt-equity-chart" style="height:250px; width:100%;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 12. SETTINGS VIEW -->
+      <section class="view-section" id="view-settings">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">⚙️ Settings & API Configuration</h2>
+            <p class="page-subtitle">Configure API keys, test connections in real-time, and manage cloud database integrations</p>
+          </div>
+          <div>
+            <button class="btn btn-outline btn-sm" onclick="loadSettings()">🔄 Refresh Status</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- API Keys Form Card -->
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <h3 class="card-title" style="margin:0;">🔑 Configure API Keys</h3>
+              <span style="font-size:0.75rem; color:var(--text-secondary); background:var(--bg-lavender); padding:3px 8px; border-radius:12px;">Saved to .env</span>
+            </div>
+
+            <!-- Finnhub (Primary) -->
+            <div class="form-group" style="margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--border);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div>
+                  <label class="form-label" style="margin:0; font-weight:600;">📊 Finnhub API</label>
+                  <span style="font-size:0.72rem; color:var(--primary-purple); font-weight:600; margin-left:6px;">PRIMARY MARKET DATA</span>
+                </div>
+                <a href="https://finnhub.io/register" target="_blank" style="font-size:0.78rem; color:var(--primary-purple); text-decoration:none;">Get free key ↗</a>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <input type="password" class="form-input" id="cfg-finnhub-key" placeholder="Finnhub API token..." style="flex:1;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="togglePasswordVisibility('cfg-finnhub-key')">👁️</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="testServiceKey('finnhub')">Test</button>
+              </div>
+              <div id="test-feedback-finnhub" style="font-size:0.78rem; margin-top:4px; display:none;"></div>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:4px 0 0 0;">
+                Primary provider for NSE quotes, intraday candles, company profiles, and verified financial news.
+              </p>
+            </div>
+
+            <!-- Alpha Vantage (Primary/Alternative) -->
+            <div class="form-group" style="margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--border);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div>
+                  <label class="form-label" style="margin:0; font-weight:600;">📈 Alpha Vantage API</label>
+                  <span style="font-size:0.72rem; color:var(--primary-purple); font-weight:600; margin-left:6px;">PRIMARY HISTORICAL DATA</span>
+                </div>
+                <a href="https://www.alphavantage.co/support/#api-key" target="_blank" style="font-size:0.78rem; color:var(--primary-purple); text-decoration:none;">Get free key ↗</a>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <input type="password" class="form-input" id="cfg-alphavantage-key" placeholder="Alpha Vantage API key..." style="flex:1;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="togglePasswordVisibility('cfg-alphavantage-key')">👁️</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="testServiceKey('alpha_vantage')">Test</button>
+              </div>
+              <div id="test-feedback-alpha_vantage" style="font-size:0.78rem; margin-top:4px; display:none;"></div>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:4px 0 0 0;">
+                Primary provider for 20+ years of daily historical OHLCV data, intraday 5m/15m bars, and technical indicators.
+              </p>
+            </div>
+
+            <!-- Google Gemini -->
+            <div class="form-group" style="margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--border);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <div>
+                  <label class="form-label" style="margin:0; font-weight:600;">✨ Google Gemini API Key</label>
+                  <span style="font-size:0.72rem; color:var(--primary-purple); font-weight:600; margin-left:6px;">GENERATIVE AI</span>
+                </div>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:0.78rem; color:var(--primary-purple); text-decoration:none;">Get free key ↗</a>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <input type="password" class="form-input" id="cfg-gemini-key" placeholder="AIzaSy..." style="flex:1;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="togglePasswordVisibility('cfg-gemini-key')">👁️</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="testServiceKey('gemini')">Test</button>
+              </div>
+              <div id="test-feedback-gemini" style="font-size:0.78rem; margin-top:4px; display:none;"></div>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:4px 0 0 0;">
+                Exclusive generative AI provider for grounded BUY/SELL/HOLD reasoning and market synthesis.
+              </p>
+            </div>
+
+            <!-- Supabase -->
+            <div class="form-group" style="margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--border);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label class="form-label" style="margin:0; font-weight:600;">⚡ Supabase Cloud Database</label>
+                <a href="https://supabase.com/dashboard" target="_blank" style="font-size:0.78rem; color:var(--primary-purple); text-decoration:none;">Dashboard ↗</a>
+              </div>
+              <div style="margin-bottom:8px;">
+                <input type="text" class="form-input" id="cfg-supabase-url" placeholder="https://your-project.supabase.co" style="width:100%;">
+              </div>
+              <div style="display:flex; gap:8px;">
+                <input type="password" class="form-input" id="cfg-supabase-key" placeholder="Supabase Anon/Public Key (eyJhb...)" style="flex:1;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="togglePasswordVisibility('cfg-supabase-key')">👁️</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="testServiceKey('supabase')">Test</button>
+              </div>
+              <div id="test-feedback-supabase" style="font-size:0.78rem; margin-top:4px; display:none;"></div>
+            </div>
+
+            <!-- Yahoo Finance (Secondary Fallback) -->
+            <div class="form-group" style="margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid var(--border);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label class="form-label" style="margin:0; font-weight:600;">🛡️ Yahoo Finance (Secondary Safety Fallback)</label>
+                <span style="font-size:0.75rem; color:var(--text-secondary); background:var(--bg-lavender); padding:2px 8px; border-radius:10px;">Fallback Mode</span>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <input type="password" class="form-input" id="cfg-yahoo-key" placeholder="Built-in (or enter custom RapidAPI / Yahoo key)" style="flex:1;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="togglePasswordVisibility('cfg-yahoo-key')">👁️</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="testServiceKey('yahoo_finance')">Test</button>
+              </div>
+              <div id="test-feedback-yahoo_finance" style="font-size:0.78rem; margin-top:4px; display:none;"></div>
+              <p style="font-size:0.75rem; color:var(--text-secondary); margin:4px 0 0 0;">
+                Demoted to secondary safety net. Only consulted if primary Finnhub and Alpha Vantage feeds are unconfigured or unavailable.
+              </p>
+            </div>
+
+            <!-- Save Action Button -->
+            <button class="btn btn-primary" id="btn-save-keys" onclick="saveApiKeys()" style="width:100%; justify-content:center; padding:12px; font-weight:600;">
+              💾 Save & Apply API Keys
+            </button>
+          </div>
+
+          <!-- Service Status & Health Card -->
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom:16px;">📡 Live Service Health</h3>
+            <div id="settings-keys-list" style="margin-bottom:20px;">
+              <p>Checking service health...</p>
+            </div>
+
+            <h3 class="card-title" style="margin-bottom:12px;">🛡️ Security & Storage</h3>
+            <div style="font-size:0.83rem; color:var(--text-secondary); line-height:1.7;">
+              <ul style="margin:0 0 12px 18px;">
+                <li>API keys are stored securely in your local <code>.env</code> file.</li>
+                <li>Keys are never exposed to browser client sessions or logs.</li>
+                <li>Changes are applied immediately to the active server instance without needing a hard restart.</li>
+                <li>If optional keys are omitted, TradeMind AI seamlessly operates with Yahoo Finance and local SQLite caching.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- QUICK ORDER MODAL -->
+<div class="modal-overlay" id="order-modal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="font-weight:700;" id="modal-order-title">Place Simulated Order</h3>
+      <button class="modal-close" onclick="closeOrderModal()">&times;</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Stock Symbol</label>
+      <input type="text" class="form-input" id="modal-sym" readonly>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Side</label>
+        <select class="form-select" id="modal-side">
+          <option value="BUY">BUY</option>
+          <option value="SELL">SELL</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Quantity</label>
+        <input type="number" class="form-input" id="modal-qty" value="10" min="1" oninput="updateModalCalc()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Execution Price (₹)</label>
+      <input type="number" class="form-input" id="modal-price" step="0.5" oninput="updateModalCalc()">
+    </div>
+    <div style="background:var(--bg-lavender); padding:12px; border-radius:var(--radius-md); margin-bottom:16px; font-size:0.85rem;">
+      <div style="display:flex; justify-content:space-between;">
+        <span>Total Estimated:</span>
+        <strong id="modal-total-cost">₹0.00</strong>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="submitModalOrder()" style="width:100%;">Confirm Simulated Order</button>
+  </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div class="toast" id="toast-notify">
+  <span id="toast-message">Notification</span>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
+

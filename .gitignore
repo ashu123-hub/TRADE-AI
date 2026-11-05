@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────
+# TradeMind AI .gitignore
+# ─────────────────────────────────────────────
+
+# Environment & Secrets
+.env
+.env.local
+.env.production
+secrets.toml
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.installed.cfg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Data & Models (large files)
+dataset/*.csv
+dataset/*.parquet
+dataset/*.pkl
+trained_models/*.pkl
+trained_models/*.h5
+trained_models/*.keras
+trained_models/*.json
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Streamlit
+.streamlit/
+
+# Cache
+.cache/
+*.cache
