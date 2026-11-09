@@ -252,6 +252,19 @@ class NextDayPredictor:
             except Exception as exc:
                 logger.warning("LSTM predict error: %s", exc)
 
+        # Price prediction (LSTM if trained, otherwise GradientBoosting price regressor)
+        price_pred = {}
+        if self.lstm.is_trained and lstm_result.get("predicted_price") is not None:
+            price_pred = {
+                "predicted_price": lstm_result.get("predicted_price"),
+                "predicted_change_pct": lstm_result.get("change_pct"),
+            }
+        else:
+            price_pred = self._predict_price(df, X)
+
+        predicted_price = price_pred.get("predicted_price")
+        predicted_change_pct = price_pred.get("predicted_change_pct")
+
         # Weighted ensemble signal
         signal_weights: dict[str, float] = {"BUY": 0.0, "SELL": 0.0, "HOLD": 0.0}
         model_weights = [
@@ -276,14 +289,56 @@ class NextDayPredictor:
             "direction": {"BUY": "UP", "SELL": "DOWN", "HOLD": "NEUTRAL"}[ensemble_signal],
             "confidence": round(ensemble_confidence, 4),
             "current_price": current_price,
-            "predicted_price": lstm_result.get("predicted_price"),
-            "predicted_change_pct": lstm_result.get("change_pct"),
+            "predicted_price": predicted_price,
+            "predicted_change_pct": predicted_change_pct,
+            "expected_high": price_pred.get("expected_high"),
+            "expected_low": price_pred.get("expected_low"),
             "rf_signal": rf_result,
             "xgb_signal": xgb_result,
             "lstm_prediction": lstm_result,
             "indicators": indicators,
-            "model": "RF + XGB + LSTM Ensemble",
+            "model": "RF + XGB + Price Regressor Ensemble",
         }
+
+    def _predict_price(self, df: pd.DataFrame, X: pd.DataFrame) -> dict:
+        """Predict expected next-day close price and trading range using GradientBoosting regression."""
+        try:
+            from sklearn.ensemble import GradientBoostingRegressor
+            df_reg = df.copy()
+            df_reg["target_return"] = df_reg["Close"].shift(-1) / df_reg["Close"] - 1
+            df_reg = df_reg.replace([np.inf, -np.inf], np.nan).dropna()
+
+            if len(df_reg) < 30:
+                return {}
+
+            exclude = {"target_return", "target", "future_return"}
+            num_cols = [c for c in df_reg.select_dtypes(include=[np.number]).columns if c not in exclude]
+
+            X_reg = df_reg[num_cols]
+            y_reg = df_reg["target_return"]
+
+            reg = GradientBoostingRegressor(n_estimators=100, max_depth=3, learning_rate=0.03, random_state=42)
+            reg.fit(X_reg, y_reg)
+
+            latest_X = X_reg.iloc[[-1]]
+            pred_return = float(reg.predict(latest_X)[0])
+            curr_price = float(df["Close"].iloc[-1])
+            pred_price = curr_price * (1.0 + pred_return)
+            change_pct = pred_return * 100.0
+
+            atr = float(df["ATR"].iloc[-1]) if "ATR" in df and pd.notna(df["ATR"].iloc[-1]) else curr_price * 0.015
+            low_bound = pred_price - (atr * 0.5)
+            high_bound = pred_price + (atr * 0.5)
+
+            return {
+                "predicted_price": round(pred_price, 2),
+                "predicted_change_pct": round(change_pct, 2),
+                "expected_high": round(high_bound, 2),
+                "expected_low": round(low_bound, 2),
+            }
+        except Exception as exc:
+            logger.warning("Price regression error: %s", exc)
+            return {}
 
     def _try_load_saved(self, symbol: str) -> bool:
         """Try loading previously trained models from disk."""

@@ -534,7 +534,9 @@ function removeWatchlist(sym) {
 
 // ─── 5. Intraday Prediction ───────────────────────────────────────────────────
 async function runIntradayPrediction() {
-  const sym = document.getElementById("intra-stock-select").value;
+  const customVal = document.getElementById("intra-stock-custom")?.value?.trim();
+  const selectVal = document.getElementById("intra-stock-select")?.value;
+  const sym = (customVal || selectVal || "RELIANCE").toUpperCase();
   const interval = document.getElementById("intra-interval-select").value;
 
   const resCard = document.getElementById("intra-result-card");
@@ -567,7 +569,9 @@ async function runIntradayPrediction() {
 
 // ─── 6. Next-Day Prediction ───────────────────────────────────────────────────
 async function runNextDayPrediction() {
-  const sym = document.getElementById("next-stock-select").value;
+  const customVal = document.getElementById("next-stock-custom")?.value?.trim();
+  const selectVal = document.getElementById("next-stock-select")?.value;
+  const sym = (customVal || selectVal || "RELIANCE").toUpperCase();
 
   const resCard = document.getElementById("next-result-card");
   resCard.style.display = "block";
@@ -595,6 +599,16 @@ async function runNextDayPrediction() {
     } else {
       document.getElementById("next-pred-price").textContent = `₹${(data.current_price || 0).toFixed(2)}`;
       document.getElementById("next-pred-change").textContent = "Directional only";
+    }
+
+    const rangeEl = document.getElementById("next-pred-range");
+    if (rangeEl) {
+      if (data.expected_low && data.expected_high) {
+        rangeEl.textContent = `Expected Trading Range: ₹${data.expected_low.toFixed(2)} — ₹${data.expected_high.toFixed(2)}`;
+        rangeEl.style.display = "block";
+      } else {
+        rangeEl.style.display = "none";
+      }
     }
 
     document.getElementById("next-rf-sig").textContent = `${data.rf_signal?.signal || '--'}`;

@@ -29,6 +29,7 @@ import database as db
 from data_collection import (
     NIFTY_50_SYMBOLS,
     NIFTY_NEXT_50,
+    NIFTY_MIDCAP_SYMBOLS,
     POPULAR_NSE_STOCKS,
     INDEX_SYMBOLS,
     get_market_overview,
@@ -155,6 +156,7 @@ def api_universe():
     return {
         "nifty_50": NIFTY_50_SYMBOLS,
         "nifty_next_50": NIFTY_NEXT_50,
+        "nifty_midcap": NIFTY_MIDCAP_SYMBOLS,
         "all_popular": POPULAR_NSE_STOCKS,
     }
 
