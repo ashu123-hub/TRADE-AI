@@ -273,9 +273,26 @@ class SupabaseService:
         if client is None:
             return False
         clean_sym = symbol.upper().replace(".NS", "").strip()
+        import uuid as _uuid
+        try:
+            _uuid.UUID(str(user_id))
+            valid_user_id = str(user_id)
+        except Exception:
+            valid_user_id = str(_uuid.uuid5(_uuid.NAMESPACE_DNS, str(user_id)))
+
+        # Ensure default paper trading user exists in users table
+        try:
+            client.table("users").upsert({
+                "id": valid_user_id,
+                "username": f"paper_{valid_user_id[:8]}",
+                "email": f"paper_{valid_user_id[:8]}@trademind.ai",
+            }, on_conflict="id").execute()
+        except Exception as u_exc:
+            logger.debug("Users upsert note: %s", u_exc)
+
         try:
             client.table("transactions").insert({
-                "user_id": user_id,
+                "user_id": valid_user_id,
                 "stock_symbol": clean_sym,
                 "transaction_type": txn_type,
                 "quantity": float(quantity),
@@ -291,11 +308,17 @@ class SupabaseService:
         client = self.get_client()
         if client is None:
             return []
+        import uuid as _uuid
+        try:
+            _uuid.UUID(str(user_id))
+            valid_user_id = str(user_id)
+        except Exception:
+            valid_user_id = str(_uuid.uuid5(_uuid.NAMESPACE_DNS, str(user_id)))
         try:
             res = (
                 client.table("transactions")
                 .select("*")
-                .eq("user_id", user_id)
+                .eq("user_id", valid_user_id)
                 .order("transaction_date", desc=True)
                 .execute()
             )

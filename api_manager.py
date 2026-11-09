@@ -169,6 +169,13 @@ class MarketDataFetcher:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
+    def get_batch_quotes(self, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
+        """Fetch real-time quotes in batch with Yahoo fallback."""
+        if api_keys.yahoo_finance_enabled:
+            return self.yf.get_batch_quotes(symbols)
+        # Fallback to individual get_quote
+        return {s: self.get_quote(s) for s in symbols}
+
     def get_company_info(self, symbol: str) -> Dict[str, Any]:
         """Fetch company info trying Finnhub first, then secondary fallback."""
         if self.fh.is_configured:

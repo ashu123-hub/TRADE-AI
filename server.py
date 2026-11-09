@@ -80,7 +80,17 @@ class TradeOrderRequest(BaseModel):
     symbol: str
     quantity: int = Field(gt=0)
     price: float = Field(gt=0)
+    side: Optional[str] = "BUY"
+    product_type: Optional[str] = "CNC"  # CNC or MIS
+    order_type: Optional[str] = "MARKET"  # MARKET or LIMIT
     notes: Optional[str] = ""
+
+class SquareOffRequest(BaseModel):
+    position_id: str
+    market_price: Optional[float] = None
+
+class AddFundsRequest(BaseModel):
+    amount: float = Field(gt=0)
 
 class BacktestRequest(BaseModel):
     symbol: str
@@ -143,6 +153,45 @@ def api_top_movers(limit: int = 5):
 def api_yahoo_status():
     """Returns Yahoo Finance live feed connection status and benchmark quotes."""
     return market_data.yf.check_health()
+
+DEFAULT_FEED_SYMBOLS = [
+    "^NSEI", "^BSESN", "^NSEBANK",
+    "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK",
+    "BHARTIARTL", "SBIN", "SUZLON", "IRFC", "HAL",
+    "BEL", "TATASTEEL", "ITC", "LT"
+]
+
+@app.get("/api/live-feed")
+def api_live_feed(symbols: Optional[str] = Query(None)):
+    """
+    Real-time streaming feed for Indian stocks & benchmark indices.
+    Returns live prices, day high/low, 52-week high/low, and percentage changes.
+    """
+    if symbols:
+        sym_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    else:
+        sym_list = DEFAULT_FEED_SYMBOLS
+
+    quotes_dict = market_data.get_batch_quotes(sym_list)
+    result_list = []
+    for s in sym_list:
+        clean = s.upper().replace(".NS", "").replace(".BO", "").strip()
+        q = quotes_dict.get(clean) or quotes_dict.get(s)
+        if q and q.get("price") is not None:
+            result_list.append(q)
+        else:
+            try:
+                single_q = market_data.get_quote(s)
+                if single_q.get("price") is not None:
+                    result_list.append(single_q)
+            except Exception:
+                pass
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "count": len(result_list),
+        "quotes": result_list,
+    }
 
 @app.get("/api/search")
 def api_search(q: str = Query(..., min_length=1)):
@@ -369,42 +418,104 @@ def api_explain_signal(symbol: str, signal: str):
 # ─── Portfolio & Paper Trading Endpoints ──────────────────────────────────────
 @app.get("/api/portfolio")
 def api_get_portfolio():
-    """Get paper portfolio holdings, cash, P&L, and transaction records."""
+    """Get paper portfolio holdings, positions, cash, P&L, and transaction records."""
     port = get_portfolio()
-    # Update real-time market prices for active holdings
+    # Update real-time market prices for active holdings & positions
     if port.positions:
-        price_map = {}
-        for sym in port.positions:
-            q = market_data.get_quote(sym)
-            if q.get("price"):
-                price_map[sym] = float(q["price"])
-        if price_map:
-            port.update_market_prices(price_map)
+        unique_syms = list({p["symbol"] for p in port.positions.values()})
+        try:
+            batch_quotes = market_data.get_batch_quotes(unique_syms)
+            price_map = {}
+            for sym in unique_syms:
+                q = batch_quotes.get(sym)
+                if not q or not q.get("price"):
+                    q = market_data.get_quote(sym)
+                if q and q.get("price"):
+                    price_map[sym] = float(q["price"])
+            if price_map:
+                port.update_market_prices(price_map)
+        except Exception as exc:
+            logger.warning("Error updating portfolio market prices: %s", exc)
 
     summary = port.get_summary()
-    holdings = list(port.positions.values())
+    holdings = summary.get("holdings", [])
+    positions = summary.get("positions", [])
     txns = port.transactions
 
     return {
         "summary": summary,
         "holdings": holdings,
+        "positions": positions,
         "transactions": list(reversed(txns))[:50],
     }
 
-@app.post("/api/portfolio/buy")
-def api_portfolio_buy(order: TradeOrderRequest):
-    """Execute simulated paper BUY order."""
+@app.post("/api/portfolio/order")
+def api_portfolio_order(order: TradeOrderRequest):
+    """Execute Groww-style simulated paper order (Delivery CNC or Intraday MIS 5x)."""
     port = get_portfolio()
-    res = port.buy(order.symbol.upper(), order.quantity, order.price, notes=order.notes)
+    side = (order.side or "BUY").upper().strip()
+    prod = (order.product_type or "CNC").upper().strip()
+    order_type = (order.order_type or "MARKET").upper().strip()
+
+    if side == "BUY":
+        res = port.buy(
+            symbol=order.symbol.upper(),
+            quantity=order.quantity,
+            price=order.price,
+            product_type=prod,
+            order_type=order_type,
+            notes=order.notes or "",
+        )
+    else:
+        res = port.sell(
+            symbol=order.symbol.upper(),
+            quantity=order.quantity,
+            price=order.price,
+            product_type=prod,
+            order_type=order_type,
+            notes=order.notes or "",
+        )
+
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
     return res
 
+@app.post("/api/portfolio/buy")
+def api_portfolio_buy(order: TradeOrderRequest):
+    """Execute simulated paper BUY order (backward compatible)."""
+    order.side = "BUY"
+    return api_portfolio_order(order)
+
 @app.post("/api/portfolio/sell")
 def api_portfolio_sell(order: TradeOrderRequest):
-    """Execute simulated paper SELL order."""
+    """Execute simulated paper SELL order (backward compatible)."""
+    order.side = "SELL"
+    return api_portfolio_order(order)
+
+@app.post("/api/portfolio/square-off")
+def api_portfolio_square_off(req: SquareOffRequest):
+    """1-Click Square Off for active intraday MIS or delivery CNC position."""
     port = get_portfolio()
-    res = port.sell(order.symbol.upper(), order.quantity, order.price, notes=order.notes)
+    market_price = req.market_price
+    if not market_price:
+        pos = port.positions.get(req.position_id)
+        if pos:
+            try:
+                q = market_data.get_quote(pos["symbol"])
+                if q.get("price"):
+                    market_price = float(q["price"])
+            except Exception:
+                pass
+    res = port.square_off(req.position_id, market_price=market_price)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error"))
+    return res
+
+@app.post("/api/portfolio/add-funds")
+def api_portfolio_add_funds(req: AddFundsRequest):
+    """Add virtual funds to paper trading account."""
+    port = get_portfolio()
+    res = port.add_funds(req.amount)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error"))
     return res
@@ -417,9 +528,14 @@ def api_portfolio_reset(capital: float = Body(1_000_000.0, embed=True)):
     return {"message": "Portfolio reset successfully", "new_capital": capital}
 
 @app.get("/api/brokerage-estimate")
-def api_brokerage_estimate(quantity: int, price: float, side: str = "BUY"):
-    """Calculate simulated Indian brokerage and regulatory charges."""
-    return calculate_brokerage(quantity, price, side.upper())
+def api_brokerage_estimate(
+    quantity: int,
+    price: float,
+    side: str = "BUY",
+    product_type: str = "CNC",
+):
+    """Calculate simulated Indian brokerage and regulatory charges (Groww/Zerodha model)."""
+    return calculate_brokerage(quantity, price, side.upper(), product_type=product_type.upper())
 
 # ─── Quantitative Backtesting Endpoints ───────────────────────────────────────
 @app.post("/api/backtest")

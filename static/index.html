@@ -29,6 +29,12 @@
         </a>
       </li>
       <li class="nav-item">
+        <a class="nav-link" data-view="live-feed">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+          🔴 Live Feed (All Stocks)
+        </a>
+      </li>
+      <li class="nav-item">
         <a class="nav-link" data-view="explore">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           Explore Stocks
@@ -122,6 +128,17 @@
       </div>
     </header>
 
+    <!-- TOP LIVE TICKER STRIP (GROWW-STYLE) -->
+    <div class="live-ticker-strip" id="live-ticker-strip">
+      <div class="live-feed-badge active" id="live-feed-toggle-btn" onclick="toggleLiveFeed()" title="Click to pause/resume auto-feed">
+        <span class="pulse-dot"></span>
+        <span id="live-feed-badge-text">LIVE (5s)</span>
+      </div>
+      <div id="ticker-chips-container" style="display:inline-flex; gap:8px; align-items:center;">
+        <span style="color:var(--text-muted); font-size:0.75rem; padding-left:8px;">Connecting to live NSE feed...</span>
+      </div>
+    </div>
+
     <!-- CONTENT PAGES -->
     <div class="page-container">
 
@@ -210,6 +227,44 @@
                 <tbody><tr><td colspan="4">Loading losers...</td></tr></tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LIVE FEED / MARKET WATCH (GROWW-STYLE) -->
+      <section class="view-section" id="view-live-feed">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">🔴 Live Feed & Market Watch</h2>
+            <p class="page-subtitle">Real-time market stream with live tick flashes, performance ranges, and 1-click Groww trading</p>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="live-feed-add-input" class="form-input" style="padding:6px 12px; font-size:0.85rem; width:180px;" placeholder="Add Symbol (e.g. HAL, BEL)">
+              <button class="btn btn-secondary btn-sm" onclick="addCustomToLiveFeed()">+ Track</button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="fetchLiveFeedNow()">⚡ Stream Now</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="table-container">
+            <table class="custom-table" id="live-feed-table">
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Price (₹)</th>
+                  <th>1D Change</th>
+                  <th style="min-width:140px;">Today's Low / High</th>
+                  <th style="min-width:140px;">52-Week Range</th>
+                  <th>Volume</th>
+                  <th>Quick Action</th>
+                </tr>
+              </thead>
+              <tbody id="live-feed-tbody">
+                <tr><td colspan="7" style="text-align:center; padding:32px;">Connecting to NSE streaming quote feeds...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -309,6 +364,54 @@
           <div class="card" style="padding:16px;">
             <p style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase;">Support / Resistance</p>
             <h3 style="font-size:1.3rem; margin-top:4px;" id="ind-sr">--</h3>
+          </div>
+        </div>
+
+        <!-- Groww Performance & Market Depth Grid -->
+        <div class="grid-2" style="margin-top:20px;">
+          <!-- Performance Sliders Card -->
+          <div class="card" style="padding:20px;">
+            <h3 class="card-title" style="margin-bottom:14px;">📊 Performance</h3>
+            <div class="perf-slider-container">
+              <div class="perf-slider-row">
+                <div class="perf-labels">
+                  <span>Today's Low: <strong id="detail-day-low">₹0.00</strong></span>
+                  <span>Today's High: <strong id="detail-day-high">₹0.00</strong></span>
+                </div>
+                <div class="perf-bar-wrap">
+                  <div class="perf-bar-fill" style="width:100%;"></div>
+                  <div class="perf-pointer" id="detail-day-pointer" style="left:50%;"></div>
+                </div>
+              </div>
+              <div class="perf-slider-row">
+                <div class="perf-labels">
+                  <span>52W Low: <strong id="detail-52w-low">₹0.00</strong></span>
+                  <span>52W High: <strong id="detail-52w-high">₹0.00</strong></span>
+                </div>
+                <div class="perf-bar-wrap">
+                  <div class="perf-bar-fill" style="width:100%;"></div>
+                  <div class="perf-pointer" id="detail-52w-pointer" style="left:50%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Market Depth Card -->
+          <div class="card" style="padding:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <h3 class="card-title">📖 Market Depth</h3>
+              <span style="font-size:0.75rem; color:var(--text-secondary);">Simulated Real-Time 5-Level Book</span>
+            </div>
+            <div class="market-depth-box">
+              <div>
+                <div class="depth-header"><span>Bid Qty</span><span>Bid (₹)</span></div>
+                <div id="depth-bids-list"></div>
+              </div>
+              <div>
+                <div class="depth-header"><span>Ask (₹)</span><span>Ask Qty</span></div>
+                <div id="depth-asks-list"></div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -478,58 +581,96 @@
         </div>
       </section>
 
-      <!-- 9. PORTFOLIO VIEW -->
+      <!-- 9. PORTFOLIO VIEW (GROWW-STYLE) -->
       <section class="view-section" id="view-portfolio">
         <div class="page-header">
           <div>
-            <h2 class="page-title">💼 Portfolio & Holdings</h2>
-            <p class="page-subtitle">Real-time valuation of paper trading positions</p>
+            <h2 class="page-title">💼 Portfolio & Paper Trading</h2>
+            <p class="page-subtitle">Track your CNC delivery holdings, MIS intraday positions with 5x leverage, and virtual P&L</p>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="loadPortfolio()">🔄 Refresh Prices</button>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn btn-primary btn-sm" onclick="openAddFundsModal()">💳 + Add Funds</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadPortfolio()">🔄 Refresh Prices</button>
+            <button class="btn btn-secondary btn-sm" onclick="resetPaperPortfolio()" style="color:var(--color-sell);">🔄 Reset</button>
+          </div>
         </div>
 
-        <div class="grid-4" style="margin-bottom:28px;">
-          <div class="card" style="padding:20px;">
-            <p style="font-size:0.8rem; color:var(--text-secondary);">Total Value</p>
-            <h3 style="font-size:1.6rem; font-weight:800;" id="port-total-val">₹0.00</h3>
+        <div class="grid-4" style="margin-bottom:24px;">
+          <div class="card" style="padding:18px;">
+            <p style="font-size:0.78rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Total Portfolio Value</p>
+            <h3 style="font-size:1.6rem; font-weight:800; color:var(--primary-purple);" id="port-total-val">₹0.00</h3>
           </div>
-          <div class="card" style="padding:20px;">
-            <p style="font-size:0.8rem; color:var(--text-secondary);">Cash Balance</p>
+          <div class="card" style="padding:18px;">
+            <p style="font-size:0.78rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Available Virtual Cash</p>
             <h3 style="font-size:1.6rem; font-weight:800;" id="port-cash-val">₹0.00</h3>
           </div>
-          <div class="card" style="padding:20px;">
-            <p style="font-size:0.8rem; color:var(--text-secondary);">Total P&L</p>
-            <h3 style="font-size:1.6rem; font-weight:800;" id="port-pnl-val">₹0.00</h3>
+          <div class="card" style="padding:18px;">
+            <p style="font-size:0.78rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Margin Used (MIS 5x)</p>
+            <h3 style="font-size:1.6rem; font-weight:800; color:#E9A23B;" id="port-margin-val">₹0.00</h3>
           </div>
-          <div class="card" style="padding:20px;">
-            <p style="font-size:0.8rem; color:var(--text-secondary);">Daily Realized P&L</p>
-            <h3 style="font-size:1.6rem; font-weight:800;" id="port-daily-val">₹0.00</h3>
+          <div class="card" style="padding:18px;">
+            <p style="font-size:0.78rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Total Returns (P&L)</p>
+            <h3 style="font-size:1.6rem; font-weight:800;" id="port-pnl-val">₹0.00</h3>
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:28px;">
-          <div class="card-header">
-            <h3 class="card-title">Current Holdings</h3>
+        <!-- Groww Tab Navigation -->
+        <div class="groww-tab-nav">
+          <button class="groww-tab-btn active" id="tab-btn-holdings" onclick="switchPortTab('holdings')">
+            📦 Holdings (Delivery CNC) <span id="holdings-count-badge" class="badge-cnc" style="margin-left:6px;">0</span>
+          </button>
+          <button class="groww-tab-btn" id="tab-btn-positions" onclick="switchPortTab('positions')">
+            ⚡ Positions (Intraday MIS 5x) <span id="positions-count-badge" class="badge-mis" style="margin-left:6px;">0</span>
+          </button>
+          <button class="groww-tab-btn" id="tab-btn-history" onclick="switchPortTab('history')">
+            📜 Orders & Transactions
+          </button>
+        </div>
+
+        <!-- Tab 1: Holdings (CNC) -->
+        <div id="port-tab-holdings" class="card" style="margin-bottom:28px;">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 class="card-title">Delivery (CNC) Holdings</h3>
+            <span style="font-size:0.8rem; color:var(--text-secondary);">Long-term investments held in paper demat</span>
           </div>
           <div class="table-container">
             <table class="custom-table" id="holdings-table">
-              <thead><tr><th>Symbol</th><th>Qty</th><th>Avg Price (₹)</th><th>LTP (₹)</th><th>Current Val (₹)</th><th>P&L (₹)</th><th>P&L (%)</th><th>Action</th></tr></thead>
+              <thead><tr><th>Symbol</th><th>Qty</th><th>Avg Price (₹)</th><th>LTP (₹)</th><th>Current Val (₹)</th><th>P&L (₹)</th><th>P&L (%)</th><th>Quick Action</th></tr></thead>
               <tbody id="holdings-table-body">
-                <tr><td colspan="8" style="text-align:center; padding:24px;">No active holdings. Place a trade via Paper Trading.</td></tr>
+                <tr><td colspan="8" style="text-align:center; padding:24px;">No active holdings. Place a simulated CNC trade.</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <div class="card">
+        <!-- Tab 2: Positions (MIS) -->
+        <div id="port-tab-positions" class="card" style="margin-bottom:28px; display:none;">
+          <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <h3 class="card-title">Intraday (MIS 5x) Positions</h3>
+              <span style="font-size:0.8rem; color:var(--text-secondary);">Active leveraged positions with 1-click square off</span>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="custom-table" id="positions-table">
+              <thead><tr><th>Position ID</th><th>Symbol</th><th>Product</th><th>Qty</th><th>Avg Entry (₹)</th><th>LTP (₹)</th><th>Margin Blocked (₹)</th><th>P&L (₹)</th><th>Action</th></tr></thead>
+              <tbody id="positions-table-body">
+                <tr><td colspan="9" style="text-align:center; padding:24px;">No open MIS positions. Place an Intraday MIS trade.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 3: History -->
+        <div id="port-tab-history" class="card" style="display:none;">
           <div class="card-header">
-            <h3 class="card-title">Recent Transactions</h3>
+            <h3 class="card-title">Order Book & Transaction History</h3>
           </div>
           <div class="table-container">
             <table class="custom-table" id="transactions-table">
-              <thead><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Qty</th><th>Price (₹)</th><th>Brokerage (₹)</th><th>Total (₹)</th></tr></thead>
+              <thead><tr><th>Date & Time</th><th>Symbol</th><th>Side</th><th>Product</th><th>Qty</th><th>Price (₹)</th><th>Taxes & Brok (₹)</th><th>Net Value (₹)</th></tr></thead>
               <tbody id="transactions-table-body">
-                <tr><td colspan="7" style="text-align:center; padding:24px;">No transactions recorded.</td></tr>
+                <tr><td colspan="8" style="text-align:center; padding:24px;">No transactions recorded.</td></tr>
               </tbody>
             </table>
           </div>
@@ -821,41 +962,121 @@
   </main>
 </div>
 
-<!-- QUICK ORDER MODAL -->
+<!-- GROWW SIGNATURE ORDER PAD MODAL -->
 <div class="modal-overlay" id="order-modal">
-  <div class="modal-card">
-    <div class="modal-header">
-      <h3 style="font-weight:700;" id="modal-order-title">Place Simulated Order</h3>
+  <div class="groww-modal-card">
+    <!-- Header with stock and LTP -->
+    <div class="order-pad-header">
+      <div class="order-pad-stock">
+        <span class="stock-name" id="modal-order-sym">RELIANCE</span>
+        <span class="stock-ltp" id="modal-order-ltp">₹1,324.40 <span id="modal-order-chg" style="color:#00D09C;">(+0.33%)</span></span>
+      </div>
       <button class="modal-close" onclick="closeOrderModal()">&times;</button>
     </div>
-    <div class="form-group">
-      <label class="form-label">Stock Symbol</label>
-      <input type="text" class="form-input" id="modal-sym" readonly>
+
+    <!-- Segmented Side Toggle: BUY vs SELL -->
+    <div class="groww-segmented" style="margin-bottom:12px;">
+      <button type="button" id="pad-btn-buy" class="active-buy" onclick="setOrderSide('BUY')">BUY</button>
+      <button type="button" id="pad-btn-sell" onclick="setOrderSide('SELL')">SELL</button>
     </div>
-    <div class="grid-2">
-      <div class="form-group">
-        <label class="form-label">Side</label>
-        <select class="form-select" id="modal-side">
-          <option value="BUY">BUY</option>
-          <option value="SELL">SELL</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Quantity</label>
-        <input type="number" class="form-input" id="modal-qty" value="10" min="1" oninput="updateModalCalc()">
-      </div>
+
+    <!-- Product Type: Delivery CNC vs Intraday MIS -->
+    <div class="groww-segmented" style="margin-bottom:14px; background:var(--bg-secondary);">
+      <button type="button" id="pad-prod-cnc" class="active-sub" onclick="setProductType('CNC')">Delivery (CNC)</button>
+      <button type="button" id="pad-prod-mis" onclick="setProductType('MIS')">Intraday (MIS 5x)</button>
     </div>
-    <div class="form-group">
-      <label class="form-label">Execution Price (₹)</label>
-      <input type="number" class="form-input" id="modal-price" step="0.5" oninput="updateModalCalc()">
-    </div>
-    <div style="background:var(--bg-lavender); padding:12px; border-radius:var(--radius-md); margin-bottom:16px; font-size:0.85rem;">
-      <div style="display:flex; justify-content:space-between;">
-        <span>Total Estimated:</span>
-        <strong id="modal-total-cost">₹0.00</strong>
+
+    <!-- Order Type: Market vs Limit -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <span style="font-size:0.82rem; font-weight:700; color:var(--text-secondary);">Order Type</span>
+      <div style="display:flex; gap:6px;">
+        <button type="button" id="pad-type-mkt" class="qty-pill-btn active-pill" onclick="setOrderType('MARKET')">Market</button>
+        <button type="button" id="pad-type-lmt" class="qty-pill-btn" onclick="setOrderType('LIMIT')">Limit</button>
       </div>
     </div>
-    <button class="btn btn-primary" onclick="submitModalOrder()" style="width:100%;">Confirm Simulated Order</button>
+
+    <!-- Quantity & Quick Pills -->
+    <div class="form-group" style="margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label class="form-label" style="margin-bottom:4px;">Quantity (Shares)</label>
+        <div class="qty-pills">
+          <button type="button" class="qty-pill-btn" onclick="addPadQty(10)">+10</button>
+          <button type="button" class="qty-pill-btn" onclick="addPadQty(25)">+25</button>
+          <button type="button" class="qty-pill-btn" onclick="addPadQty(50)">+50</button>
+          <button type="button" class="qty-pill-btn" onclick="addPadQty(100)">+100</button>
+        </div>
+      </div>
+      <input type="number" class="form-input" id="pad-input-qty" value="10" min="1" oninput="recalcOrderPad()">
+    </div>
+
+    <!-- Limit Price (auto-disabled if Market) -->
+    <div class="form-group" style="margin-bottom:14px;">
+      <label class="form-label" style="margin-bottom:4px;">Price (₹)</label>
+      <input type="number" class="form-input" id="pad-input-price" step="0.05" oninput="recalcOrderPad()">
+      <span id="pad-price-hint" style="font-size:0.75rem; color:var(--text-muted); margin-top:2px; display:block;">Executing at Best Available Market Price (LTP)</span>
+    </div>
+
+    <!-- Margin & Indian Charges Summary -->
+    <div class="groww-order-summary">
+      <div class="row">
+        <span>Turnover / Trade Value:</span>
+        <strong id="pad-turnover">₹0.00</strong>
+      </div>
+      <div class="row">
+        <span>Margin Required (<span id="pad-margin-label">CNC 100%</span>):</span>
+        <strong id="pad-margin-req" style="color:var(--primary-purple);">₹0.00</strong>
+      </div>
+      <div class="row">
+        <span>Available Virtual Cash:</span>
+        <strong id="pad-avail-cash">₹0.00</strong>
+      </div>
+      <div class="row" style="cursor:pointer;" onclick="toggleChargesDetail()">
+        <span style="color:var(--text-secondary); text-decoration:underline;">Taxes & Charges (STT/GST) ℹ️</span>
+        <strong id="pad-charges">₹0.00</strong>
+      </div>
+      <div id="pad-charges-breakup" style="display:none; font-size:0.75rem; color:var(--text-secondary); border-top:1px dashed var(--border); padding-top:6px; margin-top:6px;">
+        <div style="display:flex; justify-content:space-between;"><span>• Brokerage (flat/0.05%):</span><span id="pad-c-brok">₹0.00</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>• STT / CTT:</span><span id="pad-c-stt">₹0.00</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>• Exch & SEBI:</span><span id="pad-c-exch">₹0.00</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>• Stamp Duty:</span><span id="pad-c-stamp">₹0.00</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>• GST (18%):</span><span id="pad-c-gst">₹0.00</span></div>
+      </div>
+      <div class="row bold">
+        <span>Total Required:</span>
+        <strong id="pad-total-cost" style="color:var(--primary-purple);">₹0.00</strong>
+      </div>
+    </div>
+
+    <!-- Submit Action Button -->
+    <button type="button" class="groww-action-btn buy" id="pad-submit-btn" onclick="submitGrowwOrder()">
+      BUY RELIANCE
+    </button>
+  </div>
+</div>
+
+<!-- ADD VIRTUAL FUNDS MODAL -->
+<div class="modal-overlay" id="add-funds-modal">
+  <div class="groww-modal-card" style="max-width:400px;">
+    <div class="order-pad-header">
+      <div class="order-pad-stock">
+        <span class="stock-name">💳 Add Virtual Capital</span>
+        <span class="stock-ltp">Practice paper trading without limits</span>
+      </div>
+      <button class="modal-close" onclick="closeAddFundsModal()">&times;</button>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label">Deposit Amount (₹)</label>
+      <input type="number" class="form-input" id="add-funds-amount" value="50000" min="1000" step="5000">
+    </div>
+    <div class="qty-pills" style="margin-bottom:20px; flex-wrap:wrap;">
+      <button type="button" class="qty-pill-btn" onclick="setFundsInput(25000)">+₹25,000</button>
+      <button type="button" class="qty-pill-btn" onclick="setFundsInput(50000)">+₹50,000</button>
+      <button type="button" class="qty-pill-btn" onclick="setFundsInput(100000)">+₹1,00,000</button>
+      <button type="button" class="qty-pill-btn" onclick="setFundsInput(500000)">+₹5,00,000</button>
+    </div>
+    <button type="button" class="groww-action-btn buy" onclick="submitAddFunds()">
+      Deposit Virtual Capital
+    </button>
   </div>
 </div>
 

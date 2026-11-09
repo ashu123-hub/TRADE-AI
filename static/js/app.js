@@ -81,6 +81,7 @@ function switchView(viewName) {
 
   // Auto-load view data
   if (viewName === "dashboard") loadDashboard();
+  else if (viewName === "live-feed") renderLiveFeedTable();
   else if (viewName === "explore" && scannerData.length === 0) runScanner();
   else if (viewName === "watchlist") renderWatchlist();
   else if (viewName === "portfolio") loadPortfolio();
@@ -347,12 +348,33 @@ async function openStockDetail(symbol) {
     }
 
     if (data.quote) {
-      document.getElementById("detail-price").textContent = `₹${(data.quote.price || 0).toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
-      const change = data.quote.price - (data.quote.previous_close || data.quote.price);
-      const changePct = (change / (data.quote.previous_close || 1)) * 100;
+      const q = data.quote;
+      const price = q.price || 0;
+      document.getElementById("detail-price").textContent = `₹${price.toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
+      const change = price - (q.previous_close || price);
+      const changePct = (change / (q.previous_close || 1)) * 100;
       const chgEl = document.getElementById("detail-change");
       chgEl.textContent = `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}% (₹${change.toFixed(2)})`;
       chgEl.className = changePct >= 0 ? "stock-hero-change positive" : "stock-hero-change negative";
+
+      // Groww Performance Sliders
+      const dayLow = q.day_low || (price * 0.985);
+      const dayHigh = q.day_high || (price * 1.015);
+      const yearLow = q.year_low || (price * 0.75);
+      const yearHigh = q.year_high || (price * 1.30);
+
+      document.getElementById("detail-day-low").textContent = `₹${dayLow.toFixed(2)}`;
+      document.getElementById("detail-day-high").textContent = `₹${dayHigh.toFixed(2)}`;
+      const dayPct = Math.max(3, Math.min(97, ((price - dayLow) / (dayHigh - dayLow || 1)) * 100));
+      document.getElementById("detail-day-pointer").style.left = `${dayPct}%`;
+
+      document.getElementById("detail-52w-low").textContent = `₹${yearLow.toFixed(2)}`;
+      document.getElementById("detail-52w-high").textContent = `₹${yearHigh.toFixed(2)}`;
+      const yearPct = Math.max(3, Math.min(97, ((price - yearLow) / (yearHigh - yearLow || 1)) * 100));
+      document.getElementById("detail-52w-pointer").style.left = `${yearPct}%`;
+
+      // Groww 5-Level Market Depth
+      renderMarketDepth(price);
     }
 
     // Indicators
@@ -368,6 +390,39 @@ async function openStockDetail(symbol) {
   } catch (err) {
     console.error("Detail load error:", err);
   }
+}
+
+function renderMarketDepth(price) {
+  const bidsEl = document.getElementById("depth-bids-list");
+  const asksEl = document.getElementById("depth-asks-list");
+  if (!bidsEl || !asksEl) return;
+
+  const tick = price > 1000 ? 0.25 : (price > 100 ? 0.10 : 0.05);
+  let bidsHtml = "";
+  let asksHtml = "";
+
+  for (let i = 1; i <= 5; i++) {
+    const bidP = (price - i * tick).toFixed(2);
+    const bidQ = Math.floor(150 + Math.random() * 850 * (6 - i));
+    bidsHtml += `
+      <div class="depth-row bid">
+        <span>${bidQ.toLocaleString("en-IN")}</span>
+        <strong>₹${bidP}</strong>
+      </div>
+    `;
+
+    const askP = (price + i * tick).toFixed(2);
+    const askQ = Math.floor(150 + Math.random() * 850 * (6 - i));
+    asksHtml += `
+      <div class="depth-row ask">
+        <strong>₹${askP}</strong>
+        <span>${askQ.toLocaleString("en-IN")}</span>
+      </div>
+    `;
+  }
+
+  bidsEl.innerHTML = bidsHtml;
+  asksEl.innerHTML = asksHtml;
 }
 
 function changeChartTimeframe(period, interval, btn) {
@@ -728,28 +783,62 @@ async function loadTechnicalChart() {
   }
 }
 
-// ─── 9. Portfolio View ────────────────────────────────────────────────────────
+// ─── 9. Portfolio View (Groww-Style Tabs & 1-Click Square Off) ────────────────
+let currentPortTab = "holdings";
+
+function switchPortTab(tab) {
+  currentPortTab = tab;
+  document.querySelectorAll(".groww-tab-btn").forEach(btn => btn.classList.remove("active"));
+  const targetBtn = document.getElementById(`tab-btn-${tab}`);
+  if (targetBtn) targetBtn.classList.add("active");
+
+  const tabHoldings = document.getElementById("port-tab-holdings");
+  const tabPositions = document.getElementById("port-tab-positions");
+  const tabHistory = document.getElementById("port-tab-history");
+
+  if (tabHoldings) tabHoldings.style.display = tab === "holdings" ? "block" : "none";
+  if (tabPositions) tabPositions.style.display = tab === "positions" ? "block" : "none";
+  if (tabHistory) tabHistory.style.display = tab === "history" ? "block" : "none";
+}
+
 async function loadPortfolio() {
   try {
     const res = await fetch("/api/portfolio");
     const data = await res.json();
     const summary = data.summary || {};
 
+    // Update global state for order pad validation
+    if (orderPadState) {
+      orderPadState.availableCash = summary.cash || 0;
+    }
+
     document.getElementById("port-total-val").textContent = `₹${(summary.portfolio_value || 0).toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
     document.getElementById("port-cash-val").textContent = `₹${(summary.cash || 0).toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
-    const pnlEl = document.getElementById("port-pnl-val");
-    pnlEl.textContent = `₹${(summary.total_return || 0).toFixed(2)}`;
-    pnlEl.className = summary.total_return >= 0 ? "positive" : "negative";
-    document.getElementById("port-daily-val").textContent = `₹${(summary.daily_pnl || 0).toFixed(2)}`;
+    
+    const marginEl = document.getElementById("port-margin-val");
+    if (marginEl) {
+      marginEl.textContent = `₹${(summary.margin_used || 0).toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
+    }
 
-    // Holdings Table
-    const hbody = document.getElementById("holdings-table-body");
+    const pnlEl = document.getElementById("port-pnl-val");
+    pnlEl.textContent = `₹${(summary.total_return || 0).toFixed(2)} (${(summary.total_return_pct || 0).toFixed(2)}%)`;
+    pnlEl.className = summary.total_return >= 0 ? "positive" : "negative";
+
     const holdings = data.holdings || [];
+    const positions = data.positions || [];
+
+    const hBadge = document.getElementById("holdings-count-badge");
+    if (hBadge) hBadge.textContent = holdings.length;
+    const pBadge = document.getElementById("positions-count-badge");
+    if (pBadge) pBadge.textContent = positions.length;
+
+    // 1. Render Holdings (Delivery CNC)
+    const hbody = document.getElementById("holdings-table-body");
     if (holdings.length === 0) {
-      hbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px;">No active holdings. Place a simulated trade.</td></tr>`;
+      hbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:28px; color:var(--text-secondary);">No active delivery holdings. Buy shares under Delivery (CNC) to build long-term holdings.</td></tr>`;
     } else {
       hbody.innerHTML = holdings.map(h => {
-        const curVal = h.quantity * h.current_price;
+        const curVal = h.quantity * (h.current_price || h.avg_price);
         const pnl = h.unrealised_pnl || 0;
         const pnlPct = h.unrealised_pnl_pct || 0;
         const isPos = pnl >= 0;
@@ -758,32 +847,64 @@ async function loadPortfolio() {
             <td><strong>${h.symbol}</strong></td>
             <td>${h.quantity}</td>
             <td>₹${h.avg_price?.toFixed(2)}</td>
-            <td>₹${h.current_price?.toFixed(2)}</td>
+            <td>₹${(h.current_price || h.avg_price)?.toFixed(2)}</td>
             <td>₹${curVal.toFixed(2)}</td>
             <td class="${isPos ? 'positive' : 'negative'}">${isPos ? '+' : ''}₹${pnl.toFixed(2)}</td>
             <td class="${isPos ? 'positive' : 'negative'}">${isPos ? '+' : ''}${pnlPct.toFixed(2)}%</td>
             <td>
-              <button class="btn btn-sell btn-sm" onclick="event.stopPropagation(); openOrderModal('${h.symbol}', 'SELL')">Exit</button>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openOrderModal('${h.symbol}', 'BUY', 'CNC')">+ Buy</button>
+                <button class="btn btn-sell btn-sm" onclick="event.stopPropagation(); openOrderModal('${h.symbol}', 'SELL', 'CNC')">Exit</button>
+              </div>
             </td>
           </tr>
         `;
       }).join("");
     }
 
-    // Transactions Table
+    // 2. Render Positions (Intraday MIS 5x)
+    const pbody = document.getElementById("positions-table-body");
+    if (pbody) {
+      if (positions.length === 0) {
+        pbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:28px; color:var(--text-secondary);">No open MIS intraday positions. Trade with 5x leverage under Intraday (MIS).</td></tr>`;
+      } else {
+        pbody.innerHTML = positions.map(p => {
+          const pnl = p.unrealised_pnl || 0;
+          const isPos = pnl >= 0;
+          return `
+            <tr>
+              <td><code>${p.id}</code></td>
+              <td><strong>${p.symbol}</strong></td>
+              <td><span class="badge-mis">MIS 5x</span></td>
+              <td>${p.quantity}</td>
+              <td>₹${p.avg_price?.toFixed(2)}</td>
+              <td>₹${(p.current_price || p.avg_price)?.toFixed(2)}</td>
+              <td>₹${(p.margin_blocked || 0).toFixed(2)}</td>
+              <td class="${isPos ? 'positive' : 'negative'}" style="font-weight:700;">${isPos ? '+' : ''}₹${pnl.toFixed(2)}</td>
+              <td>
+                <button class="btn-square-off" onclick="squareOffPosition('${p.id}')">⚡ Square Off</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    // 3. Render Order Book / Transactions
     const tbody = document.getElementById("transactions-table-body");
     const txns = data.transactions || [];
     if (txns.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px;">No transactions recorded yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px;">No transactions recorded yet.</td></tr>`;
     } else {
       tbody.innerHTML = txns.map(t => `
         <tr>
           <td>${t.timestamp ? t.timestamp.substring(0, 16).replace('T', ' ') : '--'}</td>
           <td><strong>${t.symbol}</strong></td>
-          <td><span class="badge ${t.type === 'BUY' ? 'badge-buy' : 'badge-sell'}">${t.type}</span></td>
+          <td><span class="badge ${t.type?.includes('BUY') ? 'badge-buy' : 'badge-sell'}">${t.type}</span></td>
+          <td><span class="${t.product_type === 'MIS' ? 'badge-mis' : 'badge-cnc'}">${t.product_type || 'CNC'}</span></td>
           <td>${t.quantity}</td>
           <td>₹${t.price?.toFixed(2)}</td>
-          <td>₹${t.brokerage?.toFixed(2)}</td>
+          <td>₹${(t.brokerage || 0).toFixed(2)}</td>
           <td>₹${((t.quantity * t.price) + (t.brokerage || 0)).toFixed(2)}</td>
         </tr>
       `).join("");
@@ -793,7 +914,69 @@ async function loadPortfolio() {
   }
 }
 
-// ─── 10. Paper Trading Execution ──────────────────────────────────────────────
+async function squareOffPosition(positionId) {
+  if (!confirm(`Square off position ${positionId} at current market price?`)) return;
+  try {
+    const res = await fetch("/api/portfolio/square-off", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ position_id: positionId })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(`Position squared off! Realized P&L: ₹${data.realised_pnl?.toFixed(2)}`, "success");
+      loadPortfolio();
+    } else {
+      showToast(data.detail || "Square off failed.", "error");
+    }
+  } catch (e) {
+    showToast("Error executing square off.", "error");
+  }
+}
+
+// ─── Add Virtual Funds ────────────────────────────────────────────────────────
+function openAddFundsModal() {
+  const modal = document.getElementById("add-funds-modal");
+  if (modal) modal.classList.add("active");
+}
+
+function closeAddFundsModal() {
+  const modal = document.getElementById("add-funds-modal");
+  if (modal) modal.classList.remove("active");
+}
+
+function setFundsInput(amt) {
+  const inp = document.getElementById("add-funds-amount");
+  if (inp) inp.value = amt;
+}
+
+async function submitAddFunds() {
+  const inp = document.getElementById("add-funds-amount");
+  const amt = parseFloat(inp?.value) || 0;
+  if (amt <= 0) {
+    showToast("Please enter a valid amount.", "error");
+    return;
+  }
+  try {
+    const res = await fetch("/api/portfolio/add-funds", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: amt })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      closeAddFundsModal();
+      showToast(`₹${amt.toLocaleString("en-IN")} virtual funds deposited! Available cash: ₹${data.new_cash?.toLocaleString("en-IN")}`, "success");
+      loadPortfolio();
+    } else {
+      showToast(data.detail || "Deposit failed.", "error");
+    }
+  } catch (e) {
+    showToast("Failed to add funds.", "error");
+  }
+}
+
+// ─── 10. Paper Trading Execution (Terminal) ───────────────────────────────────
 async function fetchPTStockPrice() {
   const sym = document.getElementById("pt-stock-select").value;
   try {
@@ -817,7 +1000,7 @@ async function updateBrokerageCalc() {
   document.getElementById("pt-turnover").textContent = `₹${turnover.toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
 
   try {
-    const res = await fetch(`/api/brokerage-estimate?quantity=${qty}&price=${price}&side=${side}`);
+    const res = await fetch(`/api/brokerage-estimate?quantity=${qty}&price=${price}&side=${side}&product_type=CNC`);
     const brok = await res.json();
     document.getElementById("pt-charges").textContent = `₹${brok.total_charges.toFixed(2)}`;
     const total = side === "BUY" ? (turnover + brok.total_charges) : (turnover - brok.total_charges);
@@ -838,12 +1021,11 @@ async function executePaperTrade() {
     return;
   }
 
-  const endpoint = side === "BUY" ? "/api/portfolio/buy" : "/api/portfolio/sell";
   try {
-    const res = await fetch(endpoint, {
+    const res = await fetch("/api/portfolio/order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol: sym, quantity: qty, price: price })
+      body: JSON.stringify({ symbol: sym, quantity: qty, price: price, side: side, product_type: "CNC", order_type: "MARKET" })
     });
     const data = await res.json();
 
@@ -1083,67 +1265,444 @@ async function saveApiKeys() {
   }
 }
 
-// ─── Quick Order Modal ────────────────────────────────────────────────────────
-async function openOrderModal(symbol, side = "BUY") {
-  document.getElementById("modal-sym").value = symbol;
-  document.getElementById("modal-side").value = side;
-  document.getElementById("modal-qty").value = 10;
-  document.getElementById("modal-order-title").textContent = `Place Simulated ${side} Order`;
+// ─── Groww Signature Order Pad Engine ─────────────────────────────────────────
+let orderPadState = {
+  symbol: "RELIANCE",
+  side: "BUY",
+  productType: "CNC", // CNC or MIS
+  orderType: "MARKET", // MARKET or LIMIT
+  ltp: 0,
+  price: 0,
+  qty: 10,
+  availableCash: 1000000,
+};
 
-  try {
-    const res = await fetch(`/api/stock/${symbol}`);
-    const data = await res.json();
-    if (data.quote?.price) {
-      document.getElementById("modal-price").value = data.quote.price.toFixed(2);
-      updateModalCalc();
+async function openOrderModal(symbol, side = "BUY", productType = "CNC") {
+  orderPadState.symbol = symbol.toUpperCase().trim();
+  orderPadState.side = side.toUpperCase().trim();
+  orderPadState.productType = productType.toUpperCase().trim();
+  orderPadState.orderType = "MARKET";
+
+  // Set modal headers
+  const symEl = document.getElementById("modal-order-sym");
+  if (symEl) symEl.textContent = orderPadState.symbol;
+
+  // Retrieve latest quote if available in live cache
+  const cachedQ = liveFeedQuotes[orderPadState.symbol];
+  if (cachedQ && cachedQ.price) {
+    orderPadState.ltp = cachedQ.price;
+    updateModalPriceUI(cachedQ);
+  } else {
+    // Fetch live quote
+    try {
+      const res = await fetch(`/api/stock/${orderPadState.symbol}`);
+      const data = await res.json();
+      if (data.quote?.price) {
+        orderPadState.ltp = data.quote.price;
+        updateModalPriceUI(data.quote);
+      }
+    } catch (e) {
+      console.warn("Could not fetch quote for order pad:", e);
     }
-  } catch (e) {
-    console.warn(e);
   }
 
-  document.getElementById("order-modal").classList.add("active");
+  // Set initial quantity & price
+  const qtyInp = document.getElementById("pad-input-qty");
+  if (qtyInp) qtyInp.value = 10;
+  orderPadState.qty = 10;
+
+  const priceInp = document.getElementById("pad-input-price");
+  if (priceInp) {
+    priceInp.value = (orderPadState.ltp || 0).toFixed(2);
+    priceInp.disabled = true; // Default MARKET
+  }
+
+  // Update controls
+  setOrderSide(orderPadState.side);
+  setProductType(orderPadState.productType);
+  setOrderType("MARKET");
+
+  recalcOrderPad();
+
+  const modal = document.getElementById("order-modal");
+  if (modal) modal.classList.add("active");
 }
 
 function closeOrderModal() {
-  document.getElementById("order-modal").classList.remove("active");
+  const modal = document.getElementById("order-modal");
+  if (modal) modal.classList.remove("active");
 }
 
-function updateModalCalc() {
-  const qty = parseInt(document.getElementById("modal-qty").value) || 0;
-  const price = parseFloat(document.getElementById("modal-price").value) || 0;
+function updateModalPriceUI(quote) {
+  const ltpEl = document.getElementById("modal-order-ltp");
+  if (!ltpEl) return;
+  const p = quote.price || 0;
+  const chg = quote.change_pct !== undefined ? quote.change_pct : (quote.change || 0);
+  const isPos = chg >= 0;
+  ltpEl.innerHTML = `₹${p.toFixed(2)} <span id="modal-order-chg" style="color:${isPos ? '#00D09C' : '#EB5757'}; font-weight:700;">(${isPos ? '+' : ''}${chg?.toFixed(2)}%)</span>`;
+}
+
+function setOrderSide(side) {
+  orderPadState.side = side.toUpperCase();
+  const btnBuy = document.getElementById("pad-btn-buy");
+  const btnSell = document.getElementById("pad-btn-sell");
+  const submitBtn = document.getElementById("pad-submit-btn");
+
+  if (orderPadState.side === "BUY") {
+    btnBuy?.classList.add("active-buy");
+    btnSell?.classList.remove("active-sell");
+    if (submitBtn) {
+      submitBtn.className = "groww-action-btn buy";
+      submitBtn.textContent = `BUY ${orderPadState.symbol}`;
+    }
+  } else {
+    btnSell?.classList.add("active-sell");
+    btnBuy?.classList.remove("active-buy");
+    if (submitBtn) {
+      submitBtn.className = "groww-action-btn sell";
+      submitBtn.textContent = `SELL ${orderPadState.symbol}`;
+    }
+  }
+  recalcOrderPad();
+}
+
+function setProductType(prod) {
+  orderPadState.productType = prod.toUpperCase();
+  const btnCnc = document.getElementById("pad-prod-cnc");
+  const btnMis = document.getElementById("pad-prod-mis");
+  const marginLabel = document.getElementById("pad-margin-label");
+
+  if (orderPadState.productType === "MIS") {
+    btnMis?.classList.add("active-sub");
+    btnCnc?.classList.remove("active-sub");
+    if (marginLabel) marginLabel.textContent = "MIS 5x Margin (20%)";
+  } else {
+    btnCnc?.classList.add("active-sub");
+    btnMis?.classList.remove("active-sub");
+    if (marginLabel) marginLabel.textContent = "CNC 100% Cash";
+  }
+  recalcOrderPad();
+}
+
+function setOrderType(type) {
+  orderPadState.orderType = type.toUpperCase();
+  const btnMkt = document.getElementById("pad-type-mkt");
+  const btnLmt = document.getElementById("pad-type-lmt");
+  const priceInp = document.getElementById("pad-input-price");
+  const hint = document.getElementById("pad-price-hint");
+
+  if (orderPadState.orderType === "LIMIT") {
+    btnLmt?.classList.add("active-pill");
+    btnMkt?.classList.remove("active-pill");
+    if (priceInp) priceInp.disabled = false;
+    if (hint) hint.textContent = "Executing at Limit Price or better";
+  } else {
+    btnMkt?.classList.add("active-pill");
+    btnLmt?.classList.remove("active-pill");
+    if (priceInp) {
+      priceInp.disabled = true;
+      priceInp.value = (orderPadState.ltp || 0).toFixed(2);
+    }
+    if (hint) hint.textContent = "Executing at Best Available Market Price (LTP)";
+  }
+  recalcOrderPad();
+}
+
+function addPadQty(amt) {
+  const qtyInp = document.getElementById("pad-input-qty");
+  if (!qtyInp) return;
+  const cur = parseInt(qtyInp.value) || 0;
+  qtyInp.value = cur + amt;
+  recalcOrderPad();
+}
+
+function toggleChargesDetail() {
+  const b = document.getElementById("pad-charges-breakup");
+  if (b) {
+    b.style.display = b.style.display === "none" ? "block" : "none";
+  }
+}
+
+async function recalcOrderPad() {
+  const qtyInp = document.getElementById("pad-input-qty");
+  const priceInp = document.getElementById("pad-input-price");
+
+  const qty = parseInt(qtyInp?.value) || 0;
+  let price = parseFloat(priceInp?.value) || 0;
+  if (orderPadState.orderType === "MARKET" && orderPadState.ltp > 0) {
+    price = orderPadState.ltp;
+  }
+
   const turnover = qty * price;
-  document.getElementById("modal-total-cost").textContent = `₹${turnover.toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
+  const isMis = orderPadState.productType === "MIS";
+  const marginReq = isMis ? (turnover / 5.0) : turnover;
+
+  const turnoverEl = document.getElementById("pad-turnover");
+  if (turnoverEl) turnoverEl.textContent = `₹${turnover.toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
+
+  const marginReqEl = document.getElementById("pad-margin-req");
+  if (marginReqEl) marginReqEl.textContent = `₹${marginReq.toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
+
+  const cashEl = document.getElementById("pad-avail-cash");
+  if (cashEl) cashEl.textContent = `₹${(orderPadState.availableCash || 0).toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
+
+  try {
+    const res = await fetch(`/api/brokerage-estimate?quantity=${qty}&price=${price}&side=${orderPadState.side}&product_type=${orderPadState.productType}`);
+    const brok = await res.json();
+
+    const chargesEl = document.getElementById("pad-charges");
+    if (chargesEl) chargesEl.textContent = `₹${(brok.total_charges || 0).toFixed(2)}`;
+
+    document.getElementById("pad-c-brok").textContent = `₹${(brok.brokerage || 0).toFixed(2)}`;
+    document.getElementById("pad-c-stt").textContent = `₹${(brok.stt || 0).toFixed(2)}`;
+    document.getElementById("pad-c-exch").textContent = `₹${((brok.exchange_charges || 0) + (brok.sebi_charges || 0)).toFixed(2)}`;
+    document.getElementById("pad-c-stamp").textContent = `₹${(brok.stamp_duty || 0).toFixed(2)}`;
+    document.getElementById("pad-c-gst").textContent = `₹${(brok.gst || 0).toFixed(2)}`;
+
+    const totalCost = marginReq + (brok.total_charges || 0);
+    const totalCostEl = document.getElementById("pad-total-cost");
+    if (totalCostEl) totalCostEl.textContent = `₹${totalCost.toLocaleString("en-IN", {minimumFractionDigits: 2})}`;
+  } catch (e) {
+    console.warn("Charges calc error:", e);
+  }
 }
 
-async function submitModalOrder() {
-  const sym = document.getElementById("modal-sym").value;
-  const side = document.getElementById("modal-side").value;
-  const qty = parseInt(document.getElementById("modal-qty").value) || 0;
-  const price = parseFloat(document.getElementById("modal-price").value) || 0;
+async function submitGrowwOrder() {
+  const qtyInp = document.getElementById("pad-input-qty");
+  const priceInp = document.getElementById("pad-input-price");
+  const qty = parseInt(qtyInp?.value) || 0;
+  let price = parseFloat(priceInp?.value) || 0;
+  if (orderPadState.orderType === "MARKET" && orderPadState.ltp > 0) {
+    price = orderPadState.ltp;
+  }
 
   if (qty <= 0 || price <= 0) {
     showToast("Please provide valid quantity and price.", "error");
     return;
   }
 
-  const endpoint = side === "BUY" ? "/api/portfolio/buy" : "/api/portfolio/sell";
+  const payload = {
+    symbol: orderPadState.symbol,
+    quantity: qty,
+    price: price,
+    side: orderPadState.side,
+    product_type: orderPadState.productType,
+    order_type: orderPadState.orderType,
+    notes: `Groww ${orderPadState.productType} ${orderPadState.orderType} order`,
+  };
+
   try {
-    const res = await fetch(endpoint, {
+    const res = await fetch("/api/portfolio/order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol: sym, quantity: qty, price: price })
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
 
     if (!res.ok) {
-      showToast(data.detail || "Order rejected.", "error");
+      showToast(data.detail || "Order could not be executed.", "error");
     } else {
       closeOrderModal();
-      showToast(`Simulated ${side} order for ${qty} shares of ${sym} executed!`, "success");
+      showToast(`✅ Executed simulated ${orderPadState.side} ${orderPadState.productType} for ${qty} ${orderPadState.symbol}!`, "success");
       loadPortfolio();
+      pollLiveFeed(); // Refresh feeds
     }
   } catch (err) {
-    showToast("Order submission error.", "error");
+    showToast("Order execution error.", "error");
+  }
+}
+
+// ─── Live Feed Streaming Engine (5s Polling & Ticker Marquee) ────────────────
+let liveSymbols = [
+  "^NSEI", "^BSESN", "^NSEBANK",
+  "RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK",
+  "BHARTIARTL", "SBIN", "SUZLON", "IRFC", "HAL",
+  "BEL", "TATASTEEL", "ITC", "LT"
+];
+let liveFeedQuotes = {};
+let previousQuotes = {};
+let liveFeedActive = true;
+let liveFeedTimer = null;
+
+function toggleLiveFeed() {
+  liveFeedActive = !liveFeedActive;
+  const badge = document.getElementById("live-feed-toggle-btn");
+  const txt = document.getElementById("live-feed-badge-text");
+
+  if (liveFeedActive) {
+    if (badge) badge.className = "live-feed-badge active";
+    if (txt) txt.textContent = "LIVE (5s)";
+    showToast("🟢 Live feed streaming resumed.", "info");
+    pollLiveFeed();
+  } else {
+    if (badge) badge.className = "live-feed-badge";
+    if (txt) txt.textContent = "PAUSED";
+    showToast("⏸️ Live feed paused.", "info");
+  }
+}
+
+function fetchLiveFeedNow() {
+  pollLiveFeed(true);
+  showToast("⚡ Streaming latest NSE quotes...", "info");
+}
+
+function addCustomToLiveFeed() {
+  const inp = document.getElementById("live-feed-add-input");
+  const sym = inp?.value?.trim().toUpperCase();
+  if (!sym) return;
+
+  if (!liveSymbols.includes(sym)) {
+    liveSymbols.push(sym);
+    showToast(`Added ${sym} to live feed stream!`, "success");
+    if (inp) inp.value = "";
+    pollLiveFeed(true);
+  } else {
+    showToast(`${sym} is already in live feed.`, "info");
+  }
+}
+
+function renderPerfSlider(current, low, high) {
+  if (!low || !high || low >= high) {
+    return `<div style="color:var(--text-muted); font-size:0.75rem;">--</div>`;
+  }
+  const pct = Math.max(3, Math.min(97, ((current - low) / (high - low)) * 100));
+  return `
+    <div class="perf-slider-row">
+      <div class="perf-labels">
+        <span>₹${low.toFixed(1)}</span>
+        <span>₹${high.toFixed(1)}</span>
+      </div>
+      <div class="perf-bar-wrap">
+        <div class="perf-bar-fill" style="width:100%;"></div>
+        <div class="perf-pointer" style="left:${pct}%;"></div>
+      </div>
+    </div>
+  `;
+}
+
+async function pollLiveFeed(force = false) {
+  if (!liveFeedActive && !force) return;
+
+  try {
+    const symParam = encodeURIComponent(liveSymbols.join(","));
+    const res = await fetch(`/api/live-feed?symbols=${symParam}`);
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const quotes = data.quotes || [];
+
+    quotes.forEach(q => {
+      const sym = q.symbol;
+      const prev = previousQuotes[sym];
+      let tickClass = "";
+      if (prev && prev.price && q.price) {
+        if (q.price > prev.price) tickClass = "tick-flash-green";
+        else if (q.price < prev.price) tickClass = "tick-flash-red";
+      }
+      q.tickClass = tickClass;
+      liveFeedQuotes[sym] = q;
+      previousQuotes[sym] = { ...q };
+    });
+
+    renderTopTickerStrip();
+
+    // If currently viewing live feed table, update it
+    if (currentView === "live-feed") {
+      renderLiveFeedTable();
+    }
+  } catch (err) {
+    console.debug("Live feed polling skipped:", err);
+  }
+}
+
+function renderTopTickerStrip() {
+  const container = document.getElementById("ticker-chips-container");
+  if (!container) return;
+
+  const displayList = Object.values(liveFeedQuotes);
+  if (displayList.length === 0) return;
+
+  container.innerHTML = displayList.map(q => {
+    const isIndex = q.symbol.startsWith("^");
+    const displayName = isIndex ? q.symbol.replace("^NSEI", "NIFTY 50").replace("^BSESN", "SENSEX").replace("^NSEBANK", "BANK NIFTY") : q.symbol;
+    const isPos = (q.change_pct || 0) >= 0;
+    const chgText = `${isPos ? '+' : ''}${(q.change_pct || 0).toFixed(2)}%`;
+    const tickAnim = q.tickClass || "";
+
+    return `
+      <div class="ticker-item ${tickAnim}" onclick="${isIndex ? '' : `openStockDetail('${q.symbol}')`}" title="Click to view details">
+        <span class="tick-sym">${displayName}</span>
+        <span class="tick-price">₹${(q.price || 0).toLocaleString("en-IN", {minimumFractionDigits: 2})}</span>
+        <span class="tick-chg ${isPos ? 'up' : 'down'}">${chgText}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderLiveFeedTable() {
+  const tbody = document.getElementById("live-feed-tbody");
+  if (!tbody) return;
+
+  const quotes = Object.values(liveFeedQuotes);
+  if (quotes.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px;">Connecting to live NSE feed...</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = quotes.map(q => {
+    const isIndex = q.symbol.startsWith("^");
+    const displayName = isIndex ? q.symbol.replace("^NSEI", "NIFTY 50").replace("^BSESN", "SENSEX").replace("^NSEBANK", "BANK NIFTY") : q.symbol;
+    const isPos = (q.change_pct || 0) >= 0;
+    const chgVal = q.change !== null && q.change !== undefined ? `${isPos ? '+' : ''}₹${q.change.toFixed(2)}` : "";
+    const chgPct = `${isPos ? '+' : ''}${(q.change_pct || 0).toFixed(2)}%`;
+    const tickAnim = q.tickClass || "";
+
+    const daySlider = renderPerfSlider(q.price, q.day_low, q.day_high);
+    const yearSlider = renderPerfSlider(q.price, q.year_low, q.year_high);
+    const volStr = q.volume ? q.volume.toLocaleString("en-IN") : "--";
+
+    return `
+      <tr class="${tickAnim}" onclick="${isIndex ? '' : `openStockDetail('${q.symbol}')`}" style="cursor:pointer;">
+        <td>
+          <div style="display:flex; flex-direction:column;">
+            <strong style="color:var(--text-primary); font-size:0.95rem;">${displayName}</strong>
+            <span style="font-size:0.75rem; color:var(--text-muted);">${q.ticker || 'NSE'}</span>
+          </div>
+        </td>
+        <td>
+          <strong style="font-size:1rem;">₹${(q.price || 0).toLocaleString("en-IN", {minimumFractionDigits: 2})}</strong>
+        </td>
+        <td>
+          <div style="display:flex; flex-direction:column;">
+            <span class="${isPos ? 'positive' : 'negative'}" style="font-weight:700;">${chgPct}</span>
+            <span style="font-size:0.75rem; color:var(--text-secondary);">${chgVal}</span>
+          </div>
+        </td>
+        <td style="min-width:140px;">${daySlider}</td>
+        <td style="min-width:140px;">${yearSlider}</td>
+        <td><span style="font-family:monospace; font-size:0.85rem;">${volStr}</span></td>
+        <td>
+          ${isIndex ? '<span style="color:var(--text-muted); font-size:0.75rem;">Index</span>' : `
+            <div style="display:flex; gap:6px;" onclick="event.stopPropagation();">
+              <button class="btn btn-primary btn-sm" style="background:#00D09C; border-color:#00D09C; padding:3px 8px; font-size:0.75rem;" onclick="openOrderModal('${q.symbol}', 'BUY', 'CNC')">BUY</button>
+              <button class="btn btn-sell btn-sm" style="padding:3px 8px; font-size:0.75rem;" onclick="openOrderModal('${q.symbol}', 'SELL', 'CNC')">SELL</button>
+              <button class="btn btn-secondary btn-sm" style="padding:3px 8px; font-size:0.75rem;" onclick="openNextDayWithSymbol('${q.symbol}')">AI 🔮</button>
+            </div>
+          `}
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function openNextDayWithSymbol(sym) {
+  // Navigate to next-day view and prefill input
+  const navLink = document.querySelector('.nav-link[data-view="next-day"]');
+  if (navLink) navLink.click();
+  const inp = document.getElementById("nd-custom-sym");
+  if (inp) {
+    inp.value = sym;
+    runNextDayCustomPrediction();
   }
 }
 
@@ -1154,5 +1713,12 @@ document.addEventListener("DOMContentLoaded", () => {
   initGlobalSearch();
   loadUniverse();
   loadDashboard();
+  loadPortfolio();
+
+  // Start Live Feed 5-Second Stream
+  pollLiveFeed(true);
+  liveFeedTimer = setInterval(() => {
+    pollLiveFeed();
+  }, 5000);
 });
 

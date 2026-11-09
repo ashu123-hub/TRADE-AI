@@ -180,6 +180,76 @@ class YahooFinanceService:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
+    def get_batch_quotes(self, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
+        """Fetch fast live quotes for multiple symbols simultaneously."""
+        import yfinance as yf
+
+        results: Dict[str, Dict[str, Any]] = {}
+        missing: List[str] = []
+
+        # Check in-memory cache first
+        for sym in symbols:
+            clean = self.clean_symbol(sym)
+            cache_key = f"yf_quote_{clean}"
+            if cache_key in _yf_quote_cache:
+                results[clean] = _yf_quote_cache[cache_key].copy()
+                results[clean]["cached"] = True
+            else:
+                missing.append(sym)
+
+        if not missing:
+            return results
+
+        # Format remaining symbols
+        formatted_map = {self.format_nse_symbol(s): self.clean_symbol(s) for s in missing}
+        tickers_str = " ".join(formatted_map.keys())
+
+        try:
+            tickers = yf.Tickers(tickers_str)
+            for yf_sym, clean_sym in formatted_map.items():
+                t = tickers.tickers.get(yf_sym)
+                if not t:
+                    continue
+                try:
+                    fast = t.fast_info
+                    price = getattr(fast, "last_price", None)
+                    prev = getattr(fast, "previous_close", None)
+                    day_high = getattr(fast, "day_high", None)
+                    day_low = getattr(fast, "day_low", None)
+                    year_high = getattr(fast, "year_high", None)
+                    year_low = getattr(fast, "year_low", None)
+                    vol = getattr(fast, "last_volume", None) or getattr(fast, "three_month_average_volume", None)
+
+                    change = (price - prev) if (price is not None and prev is not None) else None
+                    change_pct = (change / prev * 100) if (change is not None and prev) else None
+
+                    q_data = {
+                        "symbol": clean_sym,
+                        "ticker": yf_sym,
+                        "price": round(float(price), 2) if price else None,
+                        "previous_close": round(float(prev), 2) if prev else None,
+                        "change": round(float(change), 2) if change is not None else None,
+                        "change_pct": round(float(change_pct), 2) if change_pct is not None else None,
+                        "day_high": round(float(day_high), 2) if day_high else None,
+                        "day_low": round(float(day_low), 2) if day_low else None,
+                        "year_high": round(float(year_high), 2) if year_high else None,
+                        "year_low": round(float(year_low), 2) if year_low else None,
+                        "volume": int(vol) if vol else None,
+                        "provider": self.PROVIDER_NAME,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "cached": False,
+                    }
+
+                    if price is not None:
+                        _yf_quote_cache[f"yf_quote_{clean_sym}"] = q_data
+                    results[clean_sym] = q_data
+                except Exception as inner_exc:
+                    logger.debug("Failed extracting fast_info for %s: %s", yf_sym, inner_exc)
+        except Exception as exc:
+            logger.error("Batch quote fetch error: %s", exc)
+
+        return results
+
     def get_company_profile(self, symbol: str) -> Dict[str, Any]:
         """Fetch company metadata (sector, industry, summary)."""
         import yfinance as yf

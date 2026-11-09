@@ -143,6 +143,7 @@ def calculate_brokerage(
     quantity: int,
     price: float,
     transaction_type: str = "BUY",
+    product_type: str = "CNC",
     brokerage_pct: float = 0.03,
     stt_pct: float = 0.1,
     exchange_charges_pct: float = 0.00335,
@@ -150,19 +151,34 @@ def calculate_brokerage(
 ) -> dict:
     """
     Approximate Indian brokerage + STT + exchange charges + GST.
-    Default rates approximate Zerodha intraday.
+    Supports CNC (Delivery) and MIS (Intraday with 5x leverage).
     """
     turnover = quantity * price
-    brokerage = min(turnover * brokerage_pct / 100, 20.0)  # capped at ₹20
-    stt = turnover * stt_pct / 100 if transaction_type == "SELL" else 0.0
-    exchange_charges = turnover * exchange_charges_pct / 100
-    gst = (brokerage + exchange_charges) * gst_pct / 100
-    total_charges = brokerage + stt + exchange_charges + gst
+    prod = product_type.upper().strip()
+
+    # Brokerage: 0.05% or flat ₹20 (Groww / Zerodha style)
+    brokerage = min(turnover * 0.0005, 20.0) if prod == "MIS" else min(turnover * (brokerage_pct / 100), 20.0)
+    
+    # STT: 0.1% for Delivery (sell only or buy+sell), 0.025% for Intraday (sell only)
+    if prod == "MIS":
+        stt = turnover * 0.00025 if transaction_type.upper() == "SELL" else 0.0
+        stamp_duty = turnover * 0.00003 if transaction_type.upper() == "BUY" else 0.0
+    else:
+        stt = turnover * 0.001 if transaction_type.upper() == "SELL" else 0.0
+        stamp_duty = turnover * 0.00015 if transaction_type.upper() == "BUY" else 0.0
+
+    exchange_charges = turnover * (exchange_charges_pct / 100)
+    sebi_charges = turnover * 0.000001  # ₹10 per crore
+    gst = (brokerage + exchange_charges + sebi_charges) * (gst_pct / 100)
+    total_charges = brokerage + stt + exchange_charges + sebi_charges + stamp_duty + gst
 
     return {
+        "turnover": round(turnover, 2),
         "brokerage": round(brokerage, 2),
         "stt": round(stt, 2),
         "exchange_charges": round(exchange_charges, 2),
+        "sebi_charges": round(sebi_charges, 2),
+        "stamp_duty": round(stamp_duty, 2),
         "gst": round(gst, 2),
         "total_charges": round(total_charges, 2),
         "break_even_price": round((turnover + total_charges) / quantity, 2) if quantity > 0 else 0.0,
