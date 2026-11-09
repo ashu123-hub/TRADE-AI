@@ -17,6 +17,7 @@ from indicators import add_all_indicators, get_latest_indicators
 from preprocessing import (
     add_time_features,
     add_price_features,
+    add_advanced_features,
     add_lag_features,
     create_target,
     prepare_features,
@@ -160,8 +161,9 @@ class NextDayPredictor:
         df = add_all_indicators(df)
         df = add_time_features(df)
         df = add_price_features(df)
-        df = add_lag_features(df, lags=[1, 2, 3, 5, 10, 20])
-        df = create_target(df, forward_periods=1, threshold=0.005)
+        df = add_lag_features(df, lags=[1, 2, 3, 5])
+        df = add_advanced_features(df)
+        df = create_target(df, forward_periods=1, threshold=0.003)
         return df
 
     def train(self, symbol: str) -> dict:
@@ -212,12 +214,17 @@ class NextDayPredictor:
 
     def predict(self, symbol: str, force_retrain: bool = False) -> dict:
         """Get next-day prediction for a symbol."""
-        # Try to load saved models first
-        if not force_retrain and symbol != self._last_symbol:
-            self._try_load_saved(symbol)
+        loaded = False
+        if not force_retrain:
+            if symbol == self._last_symbol and self._is_trained:
+                loaded = True
+            else:
+                loaded = self._try_load_saved(symbol)
 
-        if force_retrain or not self._is_trained:
-            self.train(symbol)
+        if force_retrain or not loaded:
+            train_res = self.train(symbol)
+            if "error" in train_res:
+                logger.warning("Training error for %s: %s", symbol, train_res.get("error"))
 
         df = self.prepare(symbol)
         if df is None:
@@ -248,11 +255,11 @@ class NextDayPredictor:
         # Weighted ensemble signal
         signal_weights: dict[str, float] = {"BUY": 0.0, "SELL": 0.0, "HOLD": 0.0}
         model_weights = [
-            (rf_result.get("signal", "HOLD"), rf_result.get("confidence", 0.0), 0.35),
-            (xgb_result.get("signal", "HOLD"), xgb_result.get("confidence", 0.0), 0.40),
+            (rf_result.get("signal", "HOLD"), rf_result.get("confidence", 0.0), 0.45),
+            (xgb_result.get("signal", "HOLD"), xgb_result.get("confidence", 0.0), 0.45),
         ]
         if lstm_result.get("signal"):
-            model_weights.append((lstm_result["signal"], lstm_result.get("confidence", 0.0), 0.25))
+            model_weights.append((lstm_result["signal"], lstm_result.get("confidence", 0.0), 0.10))
 
         for sig, conf, weight in model_weights:
             signal_weights[sig] = signal_weights.get(sig, 0.0) + conf * weight
@@ -278,20 +285,25 @@ class NextDayPredictor:
             "model": "RF + XGB + LSTM Ensemble",
         }
 
-    def _try_load_saved(self, symbol: str):
+    def _try_load_saved(self, symbol: str) -> bool:
         """Try loading previously trained models from disk."""
         try:
             self.rf = RandomForestModel.load(symbol, "daily")
             self.xgb = XGBoostModel.load(symbol, "daily")
             if self.lstm.model_exists(symbol):
-                self.lstm = LSTMModel.load(symbol)
+                try:
+                    self.lstm = LSTMModel.load(symbol)
+                except Exception:
+                    pass
             self._is_trained = True
             self._last_symbol = symbol
             logger.info("Loaded saved models for %s", symbol)
+            return True
         except FileNotFoundError:
-            pass
+            return False
         except Exception as exc:
             logger.warning("Could not load saved models for %s: %s", symbol, exc)
+            return False
 
     @staticmethod
     def _empty_result(symbol: str) -> dict:

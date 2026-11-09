@@ -41,7 +41,10 @@ class SupabaseService:
         return bool(self.url and self.anon_key and "supabase.co" in self.url)
 
     def get_client(self):
-        """Lazy-load and cache Supabase client."""
+        """Lazy-load and cache Supabase client.
+        Uses service_role_key for full read/write access (bypasses RLS),
+        falls back to anon_key for read-only access.
+        """
         if self._initialized:
             return self._client
 
@@ -50,9 +53,12 @@ class SupabaseService:
 
         try:
             from supabase import create_client
-            self._client = create_client(self.url, self.anon_key)
+            # Prefer service_role_key for server-side operations (bypasses RLS)
+            key = api_keys.supabase_service_role_key or self.anon_key
+            self._client = create_client(self.url, key)
             self._initialized = True
-            logger.info("Supabase client initialized successfully.")
+            key_type = "service_role" if api_keys.supabase_service_role_key else "anon"
+            logger.info("Supabase client initialized with %s key.", key_type)
             return self._client
         except Exception as exc:
             logger.error("Failed to initialize Supabase client: %s", exc)

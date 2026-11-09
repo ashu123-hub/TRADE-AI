@@ -45,6 +45,40 @@ def add_price_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def add_advanced_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add momentum, volatility, and ratio features used in production training."""
+    df = df.copy()
+    close = df["Close"]
+
+    # Momentum features
+    df["momentum_5"] = close / close.shift(5) - 1
+    df["momentum_10"] = close / close.shift(10) - 1
+    df["momentum_20"] = close / close.shift(20) - 1
+
+    # Volatility features
+    df["volatility_10"] = close.pct_change().rolling(10).std()
+    df["volatility_20"] = close.pct_change().rolling(20).std()
+
+    # Price relative to moving averages
+    if "SMA_20" in df.columns:
+        df["price_sma20_ratio"] = close / (df["SMA_20"] + 1e-9)
+    if "SMA_50" in df.columns:
+        df["price_sma50_ratio"] = close / (df["SMA_50"] + 1e-9)
+    if "EMA_9" in df.columns and "EMA_21" in df.columns:
+        df["ema_spread"] = (df["EMA_9"] - df["EMA_21"]) / (df["EMA_21"] + 1e-9)
+
+    # RSI-based features
+    if "RSI" in df.columns:
+        df["rsi_oversold"] = (df["RSI"] < 30).astype(int)
+        df["rsi_overbought"] = (df["RSI"] > 70).astype(int)
+
+    # Volume features
+    df["volume_change"] = df["Volume"].pct_change()
+    df["volume_sma_ratio"] = df["Volume"] / (df["Volume"].rolling(20).mean() + 1e-9)
+
+    return df
+
+
 def add_lag_features(df: pd.DataFrame, lags: list[int] = [1, 2, 3, 5, 10]) -> pd.DataFrame:
     """Add lagged close and return features."""
     df = df.copy()
